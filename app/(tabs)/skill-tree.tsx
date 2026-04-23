@@ -25,26 +25,26 @@ interface SkillNode {
   category: 'coding' | 'math' | 'general';
 }
 
-const USER_XP = 750;
+const USER_XP = 0;
 
 const SKILL_NODES: SkillNode[] = [
   // Root
-  { id: 'foundations', title: 'Foundations', icon: '🌱', description: 'Mulai perjalanan belajarmu dari sini.', xpRequired: 0, unlocked: true, completed: true, parentId: null, category: 'general' },
+  { id: 'foundations', title: 'Foundations', icon: '🌱', description: 'Mulai perjalanan belajarmu dari sini.', xpRequired: 0, unlocked: true, completed: false, parentId: null, category: 'general' },
   // Coding branch
-  { id: 'basic-prog', title: 'Basic Programming', icon: '💻', description: 'Variabel, loop, dan kondisi dasar.', xpRequired: 100, unlocked: true, completed: true, parentId: 'foundations', category: 'coding' },
-  { id: 'logic-master', title: 'Logic Master', icon: '🧠', description: 'Problem solving tingkat lanjut.', xpRequired: 300, unlocked: true, completed: false, parentId: 'basic-prog', category: 'coding' },
-  { id: 'data-struct', title: 'Data Structures', icon: '🗂️', description: 'Array, stack, queue, dan tree.', xpRequired: 500, unlocked: true, completed: false, parentId: 'logic-master', category: 'coding' },
+  { id: 'basic-prog', title: 'Basic Programming', icon: '💻', description: 'Variabel, loop, dan kondisi dasar.', xpRequired: 100, unlocked: false, completed: false, parentId: 'foundations', category: 'coding' },
+  { id: 'logic-master', title: 'Logic Master', icon: '🧠', description: 'Problem solving tingkat lanjut.', xpRequired: 300, unlocked: false, completed: false, parentId: 'basic-prog', category: 'coding' },
+  { id: 'data-struct', title: 'Data Structures', icon: '🗂️', description: 'Array, stack, queue, dan tree.', xpRequired: 500, unlocked: false, completed: false, parentId: 'logic-master', category: 'coding' },
   { id: 'algorithms', title: 'Algorithm Ninja', icon: '⚡', description: 'Sorting, searching, dan optimasi.', xpRequired: 800, unlocked: false, completed: false, parentId: 'data-struct', category: 'coding' },
   { id: 'oop', title: 'OOP Master', icon: '🏗️', description: 'Object-Oriented Programming.', xpRequired: 600, unlocked: false, completed: false, parentId: 'data-struct', category: 'coding' },
   // Math branch
-  { id: 'math-basic', title: 'Math Basics', icon: '➕', description: 'Aritmatika dan aljabar.', xpRequired: 0, unlocked: true, completed: true, parentId: 'foundations', category: 'math' },
-  { id: 'calculus', title: 'Kalkulus', icon: '📐', description: 'Turunan dan integral.', xpRequired: 200, unlocked: true, completed: false, parentId: 'math-basic', category: 'math' },
+  { id: 'math-basic', title: 'Math Basics', icon: '➕', description: 'Aritmatika dan aljabar.', xpRequired: 0, unlocked: true, completed: false, parentId: 'foundations', category: 'math' },
+  { id: 'calculus', title: 'Kalkulus', icon: '📐', description: 'Turunan dan integral.', xpRequired: 200, unlocked: false, completed: false, parentId: 'math-basic', category: 'math' },
   { id: 'statistics', title: 'Statistika', icon: '📊', description: 'Analisis data dan probabilitas.', xpRequired: 400, unlocked: false, completed: false, parentId: 'calculus', category: 'math' },
 ];
 
 const BADGES = [
-  { id: '1', title: 'Early Bird', icon: '🌅', desc: 'Belajar di pagi hari 3x berturut-turut', earned: true },
-  { id: '2', title: '5-Day Streak', icon: '🔥', desc: 'Belajar 5 hari berturut-turut', earned: true },
+  { id: '1', title: 'Early Bird', icon: '🌅', desc: 'Belajar di pagi hari 3x berturut-turut', earned: false },
+  { id: '2', title: '5-Day Streak', icon: '🔥', desc: 'Belajar 5 hari berturut-turut', earned: false },
   { id: '3', title: 'Logic Master', icon: '🧠', desc: 'Selesaikan skill Logic Master', earned: false },
   { id: '4', title: 'Night Owl', icon: '🦉', desc: 'Belajar setelah jam 9 malam 5x', earned: false },
   { id: '5', title: 'Speed Learner', icon: '🚀', desc: 'Selesaikan 5 sesi dalam sehari', earned: false },

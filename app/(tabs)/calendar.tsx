@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Palette } from '@/constants/theme';
+import { useAction } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 
 const { width } = Dimensions.get('window');
 
@@ -48,18 +50,9 @@ const DIFFICULTY_LABEL: Record<string, string> = {
   hard: 'Sulit',
 };
 
-const SAMPLE_TASKS: Task[] = [
-  { id: '1', title: 'Tugas Algoritma Sorting', subject: 'Struktur Data', difficulty: 'hard', deadline: '2026-04-20', estimatedMinutes: 120, completed: false, priority: 5 },
-  { id: '2', title: 'Essay Pancasila', subject: 'Kewarganegaraan', difficulty: 'medium', deadline: '2026-04-22', estimatedMinutes: 60, completed: false, priority: 3 },
-  { id: '3', title: 'Quiz Kalkulus Diferensial', subject: 'Matematika', difficulty: 'medium', deadline: '2026-04-19', estimatedMinutes: 90, completed: false, priority: 4 },
-];
+const SAMPLE_TASKS: Task[] = [];
 
-const SAMPLE_SCHEDULE: ScheduleBlock[] = [
-  { id: '1', title: 'Study: Algoritma Sorting', subject: 'Struktur Data', startTime: '08:00', endTime: '09:30', type: 'study', completed: false },
-  { id: '2', title: 'Break', subject: '', startTime: '09:30', endTime: '10:00', type: 'review', completed: false },
-  { id: '3', title: 'Quiz Kalkulus Prep', subject: 'Matematika', startTime: '10:00', endTime: '11:30', type: 'practice', completed: false },
-  { id: '4', title: 'Review: Essay Draft', subject: 'Kewarganegaraan', startTime: '13:00', endTime: '14:00', type: 'review', completed: true },
-];
+const SAMPLE_SCHEDULE: ScheduleBlock[] = [];
 
 const BLOCK_TYPE_COLORS = {
   study: Palette.primary,
@@ -71,6 +64,9 @@ export default function CalendarScreen() {
   const [tasks, setTasks] = useState<Task[]>(SAMPLE_TASKS);
   const [schedule, setSchedule] = useState<ScheduleBlock[]>(SAMPLE_SCHEDULE);
   const [activeTab, setActiveTab] = useState<'schedule' | 'tasks'>('schedule');
+  const [isGenerating, setIsGenerating] = useState(false);
+  
+  const generateScheduleAction = useAction(api.ai.generateSchedule);
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
@@ -111,6 +107,39 @@ export default function CalendarScreen() {
 
   const toggleComplete = (id: string) => {
     setSchedule((prev) => prev.map((b) => (b.id === id ? { ...b, completed: !b.completed } : b)));
+  };
+
+  const handleGenerateSchedule = async () => {
+    const activeTasks = tasks.filter(t => !t.completed);
+    if (activeTasks.length === 0) {
+      Alert.alert('Tidak ada tugas aktif', 'Silakan tambah tugas terlebih dahulu di tab Tugas.');
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const result = await generateScheduleAction({
+        tasks: activeTasks.map(t => ({
+          title: t.title,
+          subject: t.subject,
+          estimatedMinutes: t.estimatedMinutes,
+          difficulty: t.difficulty
+        }))
+      });
+      if (result && result.length > 0) {
+        setSchedule(result.map((r: any, i: number) => ({
+          ...r,
+          id: `ai-${Date.now()}-${i}`,
+          completed: false
+        })));
+        setActiveTab('schedule');
+      } else {
+        Alert.alert('Gagal', 'AI mengekstrak jadwal kosong. Coba lagi.');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Gagal memanggil AI. Pastikan GEMINI_API_KEY valid di Convex.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const activeCount = tasks.filter((t) => !t.completed).length;
@@ -186,10 +215,10 @@ export default function CalendarScreen() {
                 </TouchableOpacity>
               ))}
 
-              <TouchableOpacity style={styles.generateBtn}>
+              <TouchableOpacity style={styles.generateBtn} onPress={handleGenerateSchedule} disabled={isGenerating}>
                 <Text style={styles.generateBtnIcon}>🤖</Text>
                 <View>
-                  <Text style={styles.generateBtnTitle}>Auto-Generate Jadwal</Text>
+                  <Text style={styles.generateBtnTitle}>{isGenerating ? 'AI Sedang Menyusun...' : 'Auto-Generate Jadwal'}</Text>
                   <Text style={styles.generateBtnSub}>AI akan menyusun jadwal optimal dari tugas aktif</Text>
                 </View>
               </TouchableOpacity>

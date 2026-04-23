@@ -9,32 +9,24 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Palette } from '@/constants/theme';
+import { useAction } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 
 const { width } = Dimensions.get('window');
 
 const WEEKLY_DATA = [
-  { day: 'Sen', minutes: 45 },
-  { day: 'Sel', minutes: 90 },
-  { day: 'Rab', minutes: 30 },
-  { day: 'Kam', minutes: 120 },
-  { day: 'Jum', minutes: 75 },
-  { day: 'Sab', minutes: 60 },
-  { day: 'Min', minutes: 20 },
+  { day: 'Sen', minutes: 0 },
+  { day: 'Sel', minutes: 0 },
+  { day: 'Rab', minutes: 0 },
+  { day: 'Kam', minutes: 0 },
+  { day: 'Jum', minutes: 0 },
+  { day: 'Sab', minutes: 0 },
+  { day: 'Min', minutes: 0 },
 ];
 
-const SUBJECT_DATA = [
-  { subject: 'Struktur Data', minutes: 320, color: Palette.primary },
-  { subject: 'Matematika', minutes: 240, color: Palette.accent },
-  { subject: 'Kewarganegaraan', minutes: 160, color: Palette.energy },
-  { subject: 'Basis Data', minutes: 80, color: Palette.success },
-];
+const SUBJECT_DATA: { subject: string, minutes: number, color: string }[] = [];
 
-const SKILL_PROGRESS = [
-  { skill: 'Programming', level: 72, color: Palette.primary },
-  { skill: 'Matematika', level: 55, color: Palette.accent },
-  { skill: 'Berpikir Kritis', level: 88, color: Palette.success },
-  { skill: 'Manajemen Waktu', level: 40, color: Palette.energy },
-];
+const SKILL_PROGRESS: { skill: string, level: number, color: string }[] = [];
 
 const totalMinutes = WEEKLY_DATA.reduce((s, d) => s + d.minutes, 0);
 const maxMinutes = Math.max(...WEEKLY_DATA.map((d) => d.minutes));
@@ -42,6 +34,14 @@ const totalSubjectMinutes = SUBJECT_DATA.reduce((s, d) => s + d.minutes, 0);
 
 export default function DashboardScreen() {
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month'>('week');
+  const [insight, setInsight] = useState('Sedang memuat analisis AI...');
+  const getInsights = useAction(api.ai.getInsights);
+
+  React.useEffect(() => {
+    getInsights({ totalStudyMinutes: totalMinutes, streakDays: 0, completedTasksCount: 0 })
+      .then(res => setInsight(res))
+      .catch(err => setInsight('Gagal memuat insight AI. Pastikan AI Key sudah diatur.'));
+  }, [totalMinutes]);
 
   // Exam readiness prediction
   const avgDailyMin = totalMinutes / 7;
@@ -74,8 +74,8 @@ export default function DashboardScreen() {
         <View style={styles.kpiRow}>
           {[
             { label: 'Total Belajar', value: `${Math.round(totalMinutes / 60)}j ${totalMinutes % 60}m`, icon: '⏱️', color: Palette.primary },
-            { label: 'Streak', value: '5 hari 🔥', icon: '🔥', color: Palette.energy },
-            { label: 'Sesi Selesai', value: '12', icon: '✅', color: Palette.success },
+            { label: 'Streak', value: '0 hari 🔥', icon: '🔥', color: Palette.energy },
+            { label: 'Sesi Selesai', value: '0', icon: '✅', color: Palette.success },
           ].map((k, i) => (
             <View key={i} style={[styles.kpiCard, { borderColor: k.color + '40' }]}>
               <Text style={styles.kpiIcon}>{k.icon}</Text>
@@ -171,9 +171,7 @@ export default function DashboardScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>💡 Insight AI</Text>
           {[
-            { icon: '📈', text: 'Kamu paling produktif di hari Kamis. Jadwalkan materi berat di hari itu!' },
-            { icon: '⚠️', text: 'Waktu belajar Rabu & Minggu sangat rendah. Coba tambah 30 menit.' },
-            { icon: '🌟', text: 'Skill "Berpikir Kritis" sudah mencapai 88%. Hampir master!' },
+            { icon: '🌟', text: insight },
           ].map((ins, i) => (
             <View key={i} style={styles.insightItem}>
               <Text style={styles.insightIcon}>{ins.icon}</Text>

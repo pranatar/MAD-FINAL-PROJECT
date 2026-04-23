@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as ai from "../ai.js";
 import type * as sessions from "../sessions.js";
 import type * as skillTree from "../skillTree.js";
 import type * as tasks from "../tasks.js";
@@ -20,6 +21,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ai: typeof ai;
   sessions: typeof sessions;
   skillTree: typeof skillTree;
   tasks: typeof tasks;

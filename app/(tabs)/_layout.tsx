@@ -1,89 +1,97 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform, View } from 'react-native';
+import { Platform } from 'react-native';
 import { HapticTab } from '@/components/haptic-tab';
-import { Colors, Palette } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
-  return (
-    <View style={{
-      width: 32, height: 32, borderRadius: 10,
-      backgroundColor: focused ? Palette.primary + '30' : 'transparent',
-      alignItems: 'center', justifyContent: 'center',
-    }}>
-      <View style={{ transform: [{ scale: focused ? 1.1 : 1 }] }}>
-        {/* Use text emoji as icon — works without extra icon font */}
-      </View>
-    </View>
-  );
-}
+import { Palette } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'dark'];
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Palette.primary,
-        tabBarInactiveTintColor: Palette.dark.textMuted,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarActiveTintColor: Palette.primary,
+        tabBarInactiveTintColor: Palette.dark.textMuted,
         tabBarStyle: {
-          backgroundColor: Palette.dark.surface,
-          borderTopColor: Palette.dark.border,
-          borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 84 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+          position: 'absolute',
+          bottom: Platform.OS === 'ios' ? 24 : 16,
+          left: 16,
+          right: 16,
+          height: 64,
+          backgroundColor: Palette.dark.card,
+          borderRadius: 32,
+          borderWidth: 1,
+          borderColor: Palette.dark.border,
+          elevation: 10,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.3,
+          shadowRadius: 20,
           paddingTop: 8,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
+          fontSize: 10,
+          fontWeight: '700',
+          marginBottom: 4,
         },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ focused }) => (
-            <View style={{ opacity: focused ? 1 : 0.5 }}>
-              {/* emoji handled by label */}
-            </View>
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
           ),
-          tabBarLabel: ({ focused }) =>
-            focused ? '🏠 Home' : 'Home',
         }}
       />
       <Tabs.Screen
         name="calendar"
         options={{
           title: 'Jadwal',
-          tabBarLabel: ({ focused }) => focused ? '📅 Jadwal' : 'Jadwal',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="dashboard"
         options={{
           title: 'Analytics',
-          tabBarLabel: ({ focused }) => focused ? '📊 Analytics' : 'Analytics',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="skill-tree"
         options={{
           title: 'Skill',
-          tabBarLabel: ({ focused }) => focused ? '🎮 Skill' : 'Skill',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'rocket' : 'rocket-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="ai-tutor"
         options={{
-          title: 'Eksplorasi',
-          tabBarLabel: ({ focused }) => focused ? '🔍 Eksplorasi' : 'Eksplorasi',
+          title: 'Aivora',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'planet' : 'planet-outline'} size={24} color={color} />
+          ),
         }}
       />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );
 }

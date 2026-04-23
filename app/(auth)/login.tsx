@@ -9,7 +9,8 @@ import {
   Platform, 
   ScrollView, 
   Alert, 
-  Linking 
+  Linking,
+  Image
 } from 'react-native';
 import { Stack, useRouter, Link } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -70,6 +71,11 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.headerSection}>
+            <Image 
+              source={{ uri: 'file:///C:/Users/lenovo/.gemini/antigravity/brain/f8e08f4f-9e0d-48bc-bf88-904e3b897a6b/aivora_logo_1776861628738.png' }} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
             <Text style={styles.greetingText}>Welcome Back!</Text>
             <Text style={styles.subGreetingText}>Sign in to continue your journey</Text>
           </View>
@@ -212,7 +218,13 @@ const styles = StyleSheet.create({
   },
   headerSection: { 
     marginBottom: 40, 
-    alignItems: 'center' 
+    alignItems: 'center',
+    gap: 16
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 10
   },
   greetingText: { 
     fontSize: 32, 

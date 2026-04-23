@@ -14,6 +14,9 @@ export default defineSchema({
     streakDays: v.number(),
     lastStudyDate: v.optional(v.string()),
     badges: v.array(v.string()),
+    googleId: v.optional(v.string()),
+    picture: v.optional(v.string()),
+    provider: v.optional(v.string()),
   }),
 
   // Study sessions
