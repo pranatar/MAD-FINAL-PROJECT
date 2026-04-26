@@ -7,11 +7,17 @@ import {
   StyleSheet,
   Modal,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Palette } from '@/constants/theme';
+import { useQuery, useAction } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
+const USER_ID = "s22310459@student.unklab.ac.id";
 
 interface SkillNode {
   id: string;
@@ -21,34 +27,26 @@ interface SkillNode {
   xpRequired: number;
   unlocked: boolean;
   completed: boolean;
-  parentId: string | null;
   category: 'coding' | 'math' | 'general';
 }
 
-const USER_XP = 0;
-
+// Easier XP Requirements (reduced by ~50%)
 const SKILL_NODES: SkillNode[] = [
-  // Root
-  { id: 'foundations', title: 'Foundations', icon: '🌱', description: 'Mulai perjalanan belajarmu dari sini.', xpRequired: 0, unlocked: true, completed: false, parentId: null, category: 'general' },
-  // Coding branch
-  { id: 'basic-prog', title: 'Basic Programming', icon: '💻', description: 'Variabel, loop, dan kondisi dasar.', xpRequired: 100, unlocked: false, completed: false, parentId: 'foundations', category: 'coding' },
-  { id: 'logic-master', title: 'Logic Master', icon: '🧠', description: 'Problem solving tingkat lanjut.', xpRequired: 300, unlocked: false, completed: false, parentId: 'basic-prog', category: 'coding' },
-  { id: 'data-struct', title: 'Data Structures', icon: '🗂️', description: 'Array, stack, queue, dan tree.', xpRequired: 500, unlocked: false, completed: false, parentId: 'logic-master', category: 'coding' },
-  { id: 'algorithms', title: 'Algorithm Ninja', icon: '⚡', description: 'Sorting, searching, dan optimasi.', xpRequired: 800, unlocked: false, completed: false, parentId: 'data-struct', category: 'coding' },
-  { id: 'oop', title: 'OOP Master', icon: '🏗️', description: 'Object-Oriented Programming.', xpRequired: 600, unlocked: false, completed: false, parentId: 'data-struct', category: 'coding' },
-  // Math branch
-  { id: 'math-basic', title: 'Math Basics', icon: '➕', description: 'Aritmatika dan aljabar.', xpRequired: 0, unlocked: true, completed: false, parentId: 'foundations', category: 'math' },
-  { id: 'calculus', title: 'Kalkulus', icon: '📐', description: 'Turunan dan integral.', xpRequired: 200, unlocked: false, completed: false, parentId: 'math-basic', category: 'math' },
-  { id: 'statistics', title: 'Statistika', icon: '📊', description: 'Analisis data dan probabilitas.', xpRequired: 400, unlocked: false, completed: false, parentId: 'calculus', category: 'math' },
+  { id: 'foundations', title: 'Dasar Belajar', icon: '🌱', description: 'Langkah awal untuk membangun kebiasaan belajar yang efektif.', xpRequired: 0, unlocked: true, completed: false, category: 'general' },
+  { id: 'basic-prog', title: 'Dasar Pemrograman', icon: '💻', description: 'Pahami logika komputer, variabel, dan alur program.', xpRequired: 50, unlocked: false, completed: false, category: 'coding' },
+  { id: 'math-basic', title: 'Matematika Dasar', icon: '➕', description: 'Asah logika berhitung dan pemecahan masalah angka.', xpRequired: 100, unlocked: false, completed: false, category: 'math' },
+  { id: 'logic-master', title: 'Master Logika', icon: '🧠', description: 'Tingkatkan kemampuan berpikir kritis dan problem solving.', xpRequired: 200, unlocked: false, completed: false, category: 'coding' },
+  { id: 'calculus', title: 'Kalkulus Seru', icon: '📐', description: 'Pelajari konsep perubahan melalui limit dan turunan.', xpRequired: 350, unlocked: false, completed: false, category: 'math' },
+  { id: 'data-struct', title: 'Struktur Data', icon: '🗂️', description: 'Cara efisien menyimpan dan mengatur informasi di komputer.', xpRequired: 500, unlocked: false, completed: false, category: 'coding' },
+  { id: 'statistics', title: 'Ahli Statistika', icon: '📊', description: 'Analisis tren dan probabilitas dari data dunia nyata.', xpRequired: 700, unlocked: false, completed: false, category: 'math' },
+  { id: 'algorithms', title: 'Ninja Algoritma', icon: '⚡', description: 'Gunakan langkah-langkah jenius untuk solusi tercepat.', xpRequired: 1000, unlocked: false, completed: false, category: 'coding' },
 ];
 
 const BADGES = [
-  { id: '1', title: 'Early Bird', icon: '🌅', desc: 'Belajar di pagi hari 3x berturut-turut', earned: false },
-  { id: '2', title: '5-Day Streak', icon: '🔥', desc: 'Belajar 5 hari berturut-turut', earned: false },
-  { id: '3', title: 'Logic Master', icon: '🧠', desc: 'Selesaikan skill Logic Master', earned: false },
-  { id: '4', title: 'Night Owl', icon: '🦉', desc: 'Belajar setelah jam 9 malam 5x', earned: false },
-  { id: '5', title: 'Speed Learner', icon: '🚀', desc: 'Selesaikan 5 sesi dalam sehari', earned: false },
-  { id: '6', title: 'Century Club', icon: '💯', desc: 'Capai 1000 XP total', earned: false },
+  { id: '1', title: 'Early Bird', icon: '🌅', desc: 'Belajar sebelum jam 7 pagi', earned: false },
+  { id: '2', title: 'Streak 3 Hari', icon: '🔥', desc: 'Belajar 3 hari berturut-turut', earned: false },
+  { id: '3', title: 'Logika Oke', icon: '🧠', desc: 'Selesaikan skill Master Logika', earned: false },
+  { id: '4', title: 'Century XP', icon: '💯', desc: 'Capai 100 XP pertama', earned: false },
 ];
 
 const CATEGORY_COLOR: Record<string, string> = {
@@ -57,49 +55,94 @@ const CATEGORY_COLOR: Record<string, string> = {
   general: Palette.success,
 };
 
-const NODE_CARD_SIZE = (width - 56) / 3;
-
 export default function SkillTreeScreen() {
+  const router = useRouter();
   const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
   const [activeTab, setActiveTab] = useState<'tree' | 'badges'>('tree');
+  const [skillMaterial, setSkillMaterial] = useState<string | null>(null);
+  const [isLoadingMaterial, setIsLoadingMaterial] = useState(false);
 
-  const xpToNextUnlock = SKILL_NODES
-    .filter((n) => !n.unlocked && n.xpRequired > USER_XP)
-    .sort((a, b) => a.xpRequired - b.xpRequired)[0];
+  const getMaterialAction = useAction(api.ai.getSkillMaterial);
 
-  const completedCount = SKILL_NODES.filter((n) => n.completed).length;
-  const unlockedCount = SKILL_NODES.filter((n) => n.unlocked).length;
+  const handleSelectNode = async (node: SkillNode) => {
+    setSelectedNode(node);
+    setSkillMaterial(null);
+    setIsLoadingMaterial(true);
+    try {
+      const material = await getMaterialAction({
+        skillTitle: node.title,
+        description: node.description
+      });
+      setSkillMaterial(material);
+    } catch (err) {
+      setSkillMaterial("Gagal memuat materi. Silakan coba lagi.");
+    } finally {
+      setIsLoadingMaterial(false);
+    }
+  };
 
-  // Group by rows for display
-  const rootNodes = SKILL_NODES.filter((n) => n.parentId === null);
-  const level1 = SKILL_NODES.filter((n) => rootNodes.some((r) => r.id === n.parentId));
-  const level2 = SKILL_NODES.filter((n) => level1.some((l) => l.id === n.parentId));
-  const level3 = SKILL_NODES.filter((n) => level2.some((l) => l.id === n.parentId));
+  const user = useQuery(api.users.getUser, { email: USER_ID });
+  const totalXP = user?.totalXP ?? 0;
+  const userBadges = user?.badges ?? [];
 
-  const rows = [rootNodes, level1, level2, level3];
+  const dynamicNodes = SKILL_NODES.map((node) => {
+    const isUnlocked = totalXP >= node.xpRequired;
+    const isCompleted = totalXP >= node.xpRequired + 100; // Easier completion (+100 instead of +150)
+    return { ...node, unlocked: isUnlocked, completed: isCompleted };
+  });
+
+  const nextUnlock = dynamicNodes.find(n => !n.unlocked);
+  const completedCount = dynamicNodes.filter(n => n.completed).length;
+
+  const dynamicBadges = BADGES.map((badge) => {
+    let earned = badge.earned;
+    if (badge.id === '4' && totalXP >= 100) earned = true;
+    if (badge.id === '3' && totalXP >= 300) earned = true;
+    return { ...badge, earned };
+  });
+
+  userBadges.forEach((bTitle, i) => {
+    if (!dynamicBadges.find((b) => b.title === bTitle)) {
+      dynamicBadges.push({
+        id: `user-badge-${i}`,
+        title: bTitle,
+        icon: '🏅',
+        desc: `Pencapaian Level Up!`,
+        earned: true,
+      });
+    }
+  });
+
+  if (user === undefined) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={Palette.primary} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Header Premium */}
+      <LinearGradient colors={[Palette.dark.surface, Palette.dark.bg]} style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Skill Tree 🎮</Text>
-          <Text style={styles.headerSub}>{completedCount}/{SKILL_NODES.length} skill dikuasai · {USER_XP} XP</Text>
+          <Text style={styles.headerTitle}>Skill Path 🚀</Text>
+          <Text style={styles.headerSub}>{completedCount} Skill Dikuasai · {totalXP} XP</Text>
         </View>
-        <View style={styles.xpChip}>
-          <Text style={styles.xpChipText}>⭐ {USER_XP} XP</Text>
+        <View style={styles.xpBadge}>
+          <Text style={styles.xpBadgeText}>⭐ {totalXP}</Text>
         </View>
-      </View>
+      </LinearGradient>
 
-      {/* Tab Switch */}
-      <View style={styles.tabSwitch}>
+      {/* Tab Switcher */}
+      <View style={styles.tabs}>
         {(['tree', 'badges'] as const).map((tab) => (
           <TouchableOpacity
             key={tab}
             style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
             onPress={() => setActiveTab(tab)}>
             <Text style={[styles.tabBtnText, activeTab === tab && styles.tabBtnTextActive]}>
-              {tab === 'tree' ? '🌳 Skill Tree' : '🏆 Badge'}
+              {tab === 'tree' ? 'Peta Skill' : 'Koleksi Badge'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -107,137 +150,128 @@ export default function SkillTreeScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {activeTab === 'tree' ? (
-          <>
-            {/* XP Progress */}
-            {xpToNextUnlock && (
-              <View style={styles.nextUnlockCard}>
-                <Text style={styles.nextUnlockTitle}>🔓 Berikutnya terbuka:</Text>
-                <Text style={styles.nextUnlockSkill}>{xpToNextUnlock.icon} {xpToNextUnlock.title}</Text>
-                <View style={styles.nextUnlockBarBg}>
-                  <View style={[styles.nextUnlockBarFill, { width: `${Math.min(100, (USER_XP / xpToNextUnlock.xpRequired) * 100)}%` }]} />
+          <View style={styles.pathContainer}>
+            {/* Progress Summary Card */}
+            {nextUnlock && (
+              <View style={styles.nextCard}>
+                <View style={styles.nextInfo}>
+                  <Text style={styles.nextLabel}>TARGET BERIKUTNYA</Text>
+                  <Text style={styles.nextSkill}>{nextUnlock.icon} {nextUnlock.title}</Text>
                 </View>
-                <Text style={styles.nextUnlockXP}>{USER_XP} / {xpToNextUnlock.xpRequired} XP</Text>
+                <View style={styles.progressBarBg}>
+                  <View style={[styles.progressBarFill, { width: `${Math.min(100, (totalXP / nextUnlock.xpRequired) * 100)}%` }]} />
+                </View>
+                <Text style={styles.progressText}>{totalXP} / {nextUnlock.xpRequired} XP</Text>
               </View>
             )}
 
-            {/* Tree Layout */}
-            {rows.map((row, rowIdx) => (
-              <View key={rowIdx}>
-                {/* Connector line */}
-                {rowIdx > 0 && (
-                  <View style={styles.connectorContainer}>
-                    {row.map((_, i) => (
-                      <View key={i} style={styles.connectorLine} />
-                    ))}
-                  </View>
-                )}
-                <View style={styles.nodeRow}>
-                  {row.map((node) => {
-                    const catColor = CATEGORY_COLOR[node.category];
-                    return (
-                      <TouchableOpacity
-                        key={node.id}
-                        style={[
-                          styles.nodeCard,
-                          { borderColor: node.unlocked ? catColor : Palette.dark.border },
-                          node.completed && { backgroundColor: catColor + '20' },
-                          !node.unlocked && styles.nodeCardLocked,
-                        ]}
-                        onPress={() => node.unlocked && setSelectedNode(node)}
-                        activeOpacity={node.unlocked ? 0.8 : 1}>
-                        <Text style={[styles.nodeIcon, !node.unlocked && { opacity: 0.3 }]}>
-                          {node.unlocked ? node.icon : '🔒'}
-                        </Text>
-                        <Text style={[styles.nodeTitle, !node.unlocked && styles.nodeTitleLocked]} numberOfLines={2}>
-                          {node.title}
-                        </Text>
-                        {node.completed && (
-                          <View style={[styles.completedBadge, { backgroundColor: catColor }]}>
-                            <Text style={styles.completedBadgeText}>✓</Text>
-                          </View>
-                        )}
-                        {node.unlocked && !node.completed && (
-                          <View style={[styles.activeBadge, { borderColor: catColor }]}>
-                            <Text style={[styles.activeBadgeText, { color: catColor }]}>Active</Text>
-                          </View>
-                        )}
-                        {!node.unlocked && (
-                          <Text style={styles.xpReqText}>{node.xpRequired} XP</Text>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
+            {/* Simple Vertical Path */}
+            {dynamicNodes.map((node, index) => {
+              const catColor = CATEGORY_COLOR[node.category];
+              const isLocked = !node.unlocked;
+              
+              return (
+                <View key={node.id} style={styles.nodeWrapper}>
+                  {/* Line connector */}
+                  {index < dynamicNodes.length - 1 && (
+                    <View style={[styles.line, { backgroundColor: node.completed ? catColor : Palette.dark.border }]} />
+                  )}
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.nodeCard,
+                      isLocked && styles.nodeCardLocked,
+                      { borderColor: isLocked ? Palette.dark.border : catColor }
+                    ]}
+                    onPress={() => !isLocked && handleSelectNode(node)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.iconCircle, { backgroundColor: isLocked ? Palette.dark.border : catColor + '20' }]}>
+                      <Text style={[styles.nodeIcon, isLocked && { opacity: 0.3 }]}>{isLocked ? '🔒' : node.icon}</Text>
+                    </View>
+                    
+                    <View style={styles.nodeContent}>
+                      <Text style={[styles.nodeTitle, isLocked && { color: Palette.dark.textMuted }]}>{node.title}</Text>
+                      <Text style={styles.nodeXP}>{node.xpRequired} XP Dibutuhkan</Text>
+                    </View>
+
+                    {node.completed ? (
+                      <View style={[styles.statusBadge, { backgroundColor: Palette.success }]}>
+                        <Text style={styles.statusText}>✓</Text>
+                      </View>
+                    ) : node.unlocked ? (
+                      <View style={[styles.statusBadge, { backgroundColor: Palette.primary }]}>
+                        <Text style={styles.statusText}>●</Text>
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
                 </View>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.badgeGrid}>
+            {dynamicBadges.map((badge) => (
+              <View key={badge.id} style={[styles.badgeCard, !badge.earned && styles.badgeLocked]}>
+                <Text style={styles.badgeIcon}>{badge.icon}</Text>
+                <Text style={styles.badgeTitle}>{badge.title}</Text>
+                <Text style={styles.badgeDesc}>{badge.desc}</Text>
+                {badge.earned ? (
+                  <Text style={styles.earnedLabel}>TELAH DIMILIKI</Text>
+                ) : (
+                  <Text style={styles.lockedLabel}>TERKUNCI</Text>
+                )}
               </View>
             ))}
-
-            {/* Legend */}
-            <View style={styles.legend}>
-              {Object.entries(CATEGORY_COLOR).map(([cat, color]) => (
-                <View key={cat} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: color }]} />
-                  <Text style={styles.legendText}>
-                    {cat === 'coding' ? 'Programming' : cat === 'math' ? 'Matematika' : 'General'}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </>
-        ) : (
-          <>
-            <Text style={styles.badgeHeader}>
-              {BADGES.filter((b) => b.earned).length}/{BADGES.length} Badge Diperoleh
-            </Text>
-            <View style={styles.badgeGrid}>
-              {BADGES.map((badge) => (
-                <View key={badge.id} style={[styles.badgeCard, !badge.earned && styles.badgeCardLocked]}>
-                  <Text style={[styles.badgeIcon, !badge.earned && { opacity: 0.3 }]}>{badge.icon}</Text>
-                  <Text style={[styles.badgeTitle, !badge.earned && { color: Palette.dark.textMuted }]}>
-                    {badge.title}
-                  </Text>
-                  <Text style={styles.badgeDesc} numberOfLines={2}>{badge.desc}</Text>
-                  {badge.earned ? (
-                    <View style={styles.earnedChip}>
-                      <Text style={styles.earnedChipText}>✓ Diperoleh</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.lockedChip}>
-                      <Text style={styles.lockedChipText}>🔒 Terkunci</Text>
-                    </View>
-                  )}
-                </View>
-              ))}
-            </View>
-          </>
+          </View>
         )}
       </ScrollView>
 
-      {/* Node Detail Modal */}
-      <Modal visible={!!selectedNode} transparent animationType="fade">
-        <TouchableOpacity style={styles.modalOverlay} onPress={() => setSelectedNode(null)} activeOpacity={1}>
-          <View style={styles.nodeModal}>
-            <Text style={styles.nodeModalIcon}>{selectedNode?.icon}</Text>
-            <Text style={styles.nodeModalTitle}>{selectedNode?.title}</Text>
-            <View style={[styles.nodeModalCatBadge, { backgroundColor: CATEGORY_COLOR[selectedNode?.category ?? 'general'] + '30' }]}>
-              <Text style={[styles.nodeModalCatText, { color: CATEGORY_COLOR[selectedNode?.category ?? 'general'] }]}>
-                {selectedNode?.category === 'coding' ? 'Programming' : selectedNode?.category === 'math' ? 'Matematika' : 'General'}
-              </Text>
-            </View>
-            <Text style={styles.nodeModalDesc}>{selectedNode?.description}</Text>
-            <Text style={styles.nodeModalXP}>XP Required: {selectedNode?.xpRequired}</Text>
-            {selectedNode?.completed ? (
-              <View style={styles.nodeModalCompletedBadge}>
-                <Text style={styles.nodeModalCompletedText}>✅ Sudah Dikuasai!</Text>
+      {/* Modern Detail Modal */}
+      <Modal visible={!!selectedNode} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalIcon}>{selectedNode?.icon}</Text>
+            <Text style={styles.modalTitle}>{selectedNode?.title}</Text>
+            <Text style={styles.modalDesc}>{selectedNode?.description}</Text>
+            
+            <View style={styles.modalStats}>
+              <View style={styles.modalStatItem}>
+                <Text style={styles.statLabel}>Status</Text>
+                <Text style={[styles.statValue, { color: selectedNode?.completed ? Palette.success : Palette.primary }]}>
+                  {selectedNode?.completed ? 'Dikuasai' : 'Sedang Dipelajari'}
+                </Text>
               </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.nodeModalBtn, { backgroundColor: CATEGORY_COLOR[selectedNode?.category ?? 'general'] }]}
-                onPress={() => setSelectedNode(null)}>
-                <Text style={styles.nodeModalBtnText}>Mulai Belajar Skill Ini →</Text>
-              </TouchableOpacity>
-            )}
+              <View style={styles.modalStatItem}>
+                <Text style={styles.statLabel}>Syarat</Text>
+                <Text style={styles.statValue}>{selectedNode?.xpRequired} XP</Text>
+              </View>
+            </View>
+
+            {/* AI Material Section */}
+            <View style={styles.materialSection}>
+              <Text style={styles.materialHeader}>📖 Materi Pembelajaran (AI)</Text>
+              <ScrollView style={styles.materialScroll} showsVerticalScrollIndicator={true}>
+                {isLoadingMaterial ? (
+                  <ActivityIndicator size="small" color={Palette.primary} style={{ marginTop: 20 }} />
+                ) : (
+                  <Text style={styles.materialText}>{skillMaterial || "Memuat materi..."}</Text>
+                )}
+              </ScrollView>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.actionBtn} 
+              onPress={() => { setSelectedNode(null); router.push('/calendar'); }}
+            >
+              <Text style={styles.actionBtnText}>Pelajari Sekarang</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.closeBtn} onPress={() => setSelectedNode(null)}>
+              <Text style={styles.closeBtnText}>Tutup</Text>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -245,76 +279,70 @@ export default function SkillTreeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Palette.dark.bg },
-  scroll: { paddingHorizontal: 20, paddingBottom: 40 },
+  header: { padding: 25, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerTitle: { fontSize: 28, fontWeight: '900', color: Palette.dark.text },
+  headerSub: { fontSize: 14, color: Palette.dark.textMuted, marginTop: 4 },
+  xpBadge: { backgroundColor: Palette.primary, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
+  xpBadgeText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, marginBottom: 12 },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: Palette.dark.text },
-  headerSub: { fontSize: 12, color: Palette.dark.textMuted, marginTop: 2 },
-  xpChip: { backgroundColor: Palette.primary + '30', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: Palette.primary },
-  xpChipText: { color: Palette.primaryLight, fontWeight: '700', fontSize: 13 },
-
-  tabSwitch: { flexDirection: 'row', marginHorizontal: 20, backgroundColor: Palette.dark.card, borderRadius: 14, padding: 4, marginBottom: 16 },
-  tabBtn: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
-  tabBtnActive: { backgroundColor: Palette.dark.surface },
-  tabBtnText: { fontSize: 13, color: Palette.dark.textMuted, fontWeight: '600' },
+  tabs: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 20, backgroundColor: Palette.dark.surface, borderRadius: 15, padding: 5 },
+  tabBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12 },
+  tabBtnActive: { backgroundColor: Palette.dark.card },
+  tabBtnText: { color: Palette.dark.textMuted, fontWeight: '600' },
   tabBtnTextActive: { color: Palette.dark.text },
 
-  nextUnlockCard: { backgroundColor: Palette.dark.surface, borderRadius: 18, padding: 18, marginBottom: 20, borderWidth: 1, borderColor: Palette.primary + '40' },
-  nextUnlockTitle: { fontSize: 12, color: Palette.dark.textMuted, marginBottom: 6 },
-  nextUnlockSkill: { fontSize: 16, fontWeight: '700', color: Palette.dark.text, marginBottom: 12 },
-  nextUnlockBarBg: { height: 8, backgroundColor: Palette.dark.border, borderRadius: 4, overflow: 'hidden', marginBottom: 6 },
-  nextUnlockBarFill: { height: '100%', backgroundColor: Palette.primary, borderRadius: 4 },
-  nextUnlockXP: { fontSize: 11, color: Palette.primary, fontWeight: '600' },
+  scroll: { paddingBottom: 50 },
+  pathContainer: { paddingHorizontal: 20 },
 
-  connectorContainer: { flexDirection: 'row', justifyContent: 'space-around', height: 24, alignItems: 'center', paddingHorizontal: 36 },
-  connectorLine: { width: 2, height: 24, backgroundColor: Palette.dark.border, borderRadius: 1 },
+  nextCard: { backgroundColor: Palette.dark.surface, borderRadius: 20, padding: 20, marginBottom: 30, borderWidth: 1, borderColor: Palette.primary + '30' },
+  nextInfo: { marginBottom: 5 },
+  nextLabel: { fontSize: 10, fontWeight: 'bold', color: Palette.primary, letterSpacing: 1, marginBottom: 8 },
+  nextSkill: { fontSize: 18, fontWeight: '800', color: Palette.dark.text, marginBottom: 15 },
+  progressBarBg: { height: 10, backgroundColor: Palette.dark.border, borderRadius: 5, overflow: 'hidden' },
+  progressBarFill: { height: '100%', backgroundColor: Palette.primary },
+  progressText: { fontSize: 12, color: Palette.dark.textMuted, marginTop: 8, textAlign: 'right' },
 
-  nodeRow: { flexDirection: 'row', justifyContent: 'space-around', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  nodeCard: {
-    width: NODE_CARD_SIZE, minHeight: NODE_CARD_SIZE,
-    backgroundColor: Palette.dark.card, borderRadius: 18, borderWidth: 2,
-    padding: 12, alignItems: 'center', justifyContent: 'center', position: 'relative',
+  nodeWrapper: { alignItems: 'center', marginBottom: 0 },
+  line: { width: 4, height: 40, backgroundColor: Palette.dark.border },
+  nodeCard: { 
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.dark.surface, 
+    width: '100%', padding: 15, borderRadius: 20, borderWidth: 1.5, position: 'relative' 
   },
-  nodeCardLocked: { borderStyle: 'dashed' },
-  nodeIcon: { fontSize: 28, marginBottom: 6 },
-  nodeTitle: { fontSize: 10, fontWeight: '700', color: Palette.dark.text, textAlign: 'center', lineHeight: 14 },
-  nodeTitleLocked: { color: Palette.dark.textMuted },
-  completedBadge: { position: 'absolute', top: 6, right: 6, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  completedBadgeText: { fontSize: 10, color: '#fff', fontWeight: '800' },
-  activeBadge: { marginTop: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
-  activeBadgeText: { fontSize: 8, fontWeight: '700' },
-  xpReqText: { fontSize: 8, color: Palette.dark.textMuted, marginTop: 4 },
+  nodeCardLocked: { opacity: 0.7, borderStyle: 'dashed' },
+  iconCircle: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', marginRight: 15 },
+  nodeIcon: { fontSize: 28 },
+  nodeContent: { flex: 1 },
+  nodeTitle: { fontSize: 17, fontWeight: '800', color: Palette.dark.text },
+  nodeXP: { fontSize: 12, color: Palette.dark.textMuted, marginTop: 2 },
+  statusBadge: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  statusText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
 
-  legend: { flexDirection: 'row', justifyContent: 'center', gap: 20, marginTop: 16, marginBottom: 8 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontSize: 11, color: Palette.dark.textMuted },
+  badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 15, paddingHorizontal: 20 },
+  badgeCard: { width: (width - 55) / 2, backgroundColor: Palette.dark.surface, borderRadius: 20, padding: 20, alignItems: 'center' },
+  badgeLocked: { opacity: 0.5 },
+  badgeIcon: { fontSize: 40, marginBottom: 10 },
+  badgeTitle: { fontSize: 15, fontWeight: '800', color: Palette.dark.text, textAlign: 'center' },
+  badgeDesc: { fontSize: 11, color: Palette.dark.textMuted, textAlign: 'center', marginTop: 5, marginBottom: 10 },
+  earnedLabel: { fontSize: 9, fontWeight: 'bold', color: Palette.success },
+  lockedLabel: { fontSize: 9, fontWeight: 'bold', color: Palette.dark.textMuted },
 
-  badgeHeader: { fontSize: 15, fontWeight: '700', color: Palette.dark.text, marginBottom: 16, textAlign: 'center' },
-  badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
-  badgeCard: {
-    width: (width - 52) / 2, backgroundColor: Palette.dark.card,
-    borderRadius: 18, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: Palette.dark.border,
-  },
-  badgeCardLocked: { opacity: 0.6 },
-  badgeIcon: { fontSize: 36, marginBottom: 8 },
-  badgeTitle: { fontSize: 14, fontWeight: '700', color: Palette.dark.text, textAlign: 'center', marginBottom: 6 },
-  badgeDesc: { fontSize: 10, color: Palette.dark.textMuted, textAlign: 'center', lineHeight: 14, marginBottom: 10 },
-  earnedChip: { backgroundColor: Palette.success + '30', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  earnedChipText: { color: Palette.success, fontSize: 11, fontWeight: '700' },
-  lockedChip: { backgroundColor: Palette.dark.border, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  lockedChipText: { color: Palette.dark.textMuted, fontSize: 11 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 30 },
+  modalContent: { backgroundColor: Palette.dark.surface, width: '100%', borderRadius: 30, padding: 30, alignItems: 'center' },
+  modalIcon: { fontSize: 70, marginBottom: 15 },
+  modalTitle: { fontSize: 24, fontWeight: '900', color: Palette.dark.text, textAlign: 'center' },
+  modalDesc: { fontSize: 15, color: Palette.dark.textMuted, textAlign: 'center', marginTop: 10, lineHeight: 22 },
+  modalStats: { flexDirection: 'row', gap: 30, marginVertical: 25 },
+  modalStatItem: { alignItems: 'center' },
+  statLabel: { fontSize: 11, color: Palette.dark.textMuted, fontWeight: 'bold', textTransform: 'uppercase' },
+  statValue: { fontSize: 14, fontWeight: '800', marginTop: 5, color: Palette.dark.text },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 32 },
-  nodeModal: { backgroundColor: Palette.dark.surface, borderRadius: 24, padding: 28, width: '100%', alignItems: 'center' },
-  nodeModalIcon: { fontSize: 52, marginBottom: 12 },
-  nodeModalTitle: { fontSize: 22, fontWeight: '800', color: Palette.dark.text, textAlign: 'center', marginBottom: 10 },
-  nodeModalCatBadge: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 12, marginBottom: 14 },
-  nodeModalCatText: { fontSize: 12, fontWeight: '700' },
-  nodeModalDesc: { fontSize: 14, color: Palette.dark.textMuted, textAlign: 'center', lineHeight: 20, marginBottom: 16 },
-  nodeModalXP: { fontSize: 13, color: Palette.primary, fontWeight: '600', marginBottom: 20 },
-  nodeModalCompletedBadge: { backgroundColor: Palette.success + '30', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14 },
-  nodeModalCompletedText: { color: Palette.success, fontWeight: '700', fontSize: 15 },
-  nodeModalBtn: { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14 },
-  nodeModalBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  materialSection: { width: '100%', backgroundColor: Palette.dark.bg, borderRadius: 15, padding: 15, marginBottom: 20, maxHeight: 250 },
+  materialHeader: { fontSize: 13, fontWeight: 'bold', color: Palette.primary, marginBottom: 10 },
+  materialScroll: { flexGrow: 0 },
+  materialText: { fontSize: 13, color: Palette.dark.text, lineHeight: 20 },
+
+  actionBtn: { backgroundColor: Palette.primary, width: '100%', paddingVertical: 15, borderRadius: 15, alignItems: 'center' },
+  actionBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  closeBtn: { marginTop: 15 },
+  closeBtnText: { color: Palette.dark.textMuted, fontWeight: '600' },
 });

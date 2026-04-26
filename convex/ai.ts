@@ -1,5 +1,5 @@
-import { action } from "./_generated/server";
 import { v } from "convex/values";
+import { action } from "./_generated/server";
 
 // Helper function to call Gemini API via REST
 async function callGemini(prompt: string, systemInstruction?: string) {
@@ -8,15 +8,16 @@ async function callGemini(prompt: string, systemInstruction?: string) {
     throw new Error("GEMINI_API_KEY is not set in environment variables");
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-  
-  const body: any = {
-    contents: [{ role: "user", parts: [{ text: prompt }] }]
-  };
+  const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  if (systemInstruction) {
-    body.systemInstruction = { parts: [{ text: systemInstruction }] };
-  }
+  // Merge systemInstruction into the prompt for maximum compatibility
+  const combinedPrompt = systemInstruction
+    ? `${systemInstruction}\n\nSTUDENT REQUEST: ${prompt}`
+    : prompt;
+
+  const body: any = {
+    contents: [{ role: "user", parts: [{ text: combinedPrompt }] }]
+  };
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -36,14 +37,14 @@ async function callGemini(prompt: string, systemInstruction?: string) {
 
 // 1. AI Chat Tutor Action
 export const chatTutor = action({
-  args: { 
-    message: v.string(), 
+  args: {
+    message: v.string(),
     mood: v.optional(v.string()),
-    history: v.array(v.object({ role: v.string(), text: v.string() })) 
+    history: v.array(v.object({ role: v.string(), text: v.string() }))
   },
   handler: async (ctx, args) => {
     const moodContext = args.mood ? `Saat ini student sedang merasa: ${args.mood}. Sesuaikan nada bicara dan tingkat kesabaranmu.` : "";
-    
+
     // Format history for the prompt context to keep it simple with pure string
     let historyText = args.history.map(m => `${m.role === 'user' ? 'Student' : 'Tutor'}: ${m.text}`).join('\n');
     let fullPrompt = `Riwayat percakapan:\n${historyText}\n\nStudent: ${args.message}\nTutor:`;
@@ -72,7 +73,7 @@ export const getInsights = action({
 - Tugas diselesaikan: ${args.completedTasksCount}
 
 Berikan 1 paragraf singkat (maksimal 3 kalimat) berupa insight / motivasi personal. Apakah dia kurang belajar, sangat bagus, atau berpotensi burnout? Jangan bertele-tele.`;
-    
+
     const reply = await callGemini(prompt, "Kamu adalah AI analis performa belajar.");
     return reply;
   }
@@ -93,26 +94,116 @@ export const generateSchedule = action({
     const prompt = `Berikut adalah daftar tugas yang belum selesai:
 ${tasksData}
 
-Tugasmu mengonversi tugas ini menjadi blok-blok jadwal belajar menggunakan teknik Pomodoro.
+Tugasmu mengonversi tugas ini menjadi blok-blok jadwal belajar yang DETAIL dan bermanfaat menggunakan teknik Pomodoro.
 Pecah tugas sulit/panjang menjadi sesi "study" maksimal 45 menit per blok, dan tambahkan sesi "review" atau "practice" sesuai intuisi.
-Jangan gunakan waktu spesifik seperti "08:00", cukup gunakan label waktu tentatif (e.g., "Sesi Pagi 1", "Sesi Siang").
+Jangan gunakan waktu spesifik seperti "08:00", cukup gunakan label waktu tentatif (e.g., "Sesi Pagi 1", "Sesi Siang 1", "Sesi Sore 1").
+
+Untuk setiap blok jadwal, berikan informasi LENGKAP berikut:
+- title: judul singkat sesi belajar
+- subject: nama mata kuliah/topik
+- startTime & endTime: label waktu tentatif (Sesi Pagi 1, dll)
+- type: "study" | "review" | "practice"
+- durationMinutes: estimasi durasi dalam menit (angka)
+- description: deskripsi 1-2 kalimat tentang APA yang harus dikerjakan pada sesi ini secara spesifik
+- tips: 1 tips belajar praktis dan spesifik untuk sesi ini (Bahasa Indonesia, singkat, actionable)
+- priority: angka 1-3 (1=rendah, 2=sedang, 3=tinggi) berdasarkan urgensi tugas
+- focusTechnique: teknik belajar yang disarankan, pilih salah satu: "Pomodoro", "Active Recall", "Mind Mapping", "Spaced Repetition", "Feynman Technique", "Practice Problems"
 
 Kembalikan HANYA format JSON valid sebuah array of objects:
 [
-  { "title": "...", "subject": "...", "startTime": "Sesi Pagi 1", "endTime": "Sesi Pagi 2", "type": "study" | "review" | "practice" }
+  {
+    "title": "...",
+    "subject": "...",
+    "startTime": "Sesi Pagi 1",
+    "endTime": "Sesi Pagi 2",
+    "type": "study",
+    "durationMinutes": 45,
+    "description": "...",
+    "tips": "...",
+    "priority": 2,
+    "focusTechnique": "Pomodoro"
+  }
 ]
 Tanpa backticks atau markdown. HANYA valid JSON.`;
 
     const rawReply = await callGemini(prompt);
-    
+
+    if (rawReply.includes("[Gemini Error Debug]")) {
+      throw new Error(`Gemini API Error: ${rawReply}`);
+    }
+
     try {
-      // Clean up markdown quotes if Gemini accidentally adds them
-      const cleaned = rawReply.replace(/```json/g, "").replace(/```/g, "").trim();
-      const scheduleLines = JSON.parse(cleaned);
+      // Robust JSON extraction: find the first '[' and last ']'
+      const startIdx = rawReply.indexOf('[');
+      const endIdx = rawReply.lastIndexOf(']');
+
+      if (startIdx === -1 || endIdx === -1) {
+        console.error("AI response does not contain a JSON array:", rawReply);
+        return [];
+      }
+
+      const jsonStr = rawReply.substring(startIdx, endIdx + 1);
+      const scheduleLines = JSON.parse(jsonStr);
       return scheduleLines;
     } catch (e) {
-      console.error("Failed to parse Gemini schedule output", rawReply);
-      return []; // fallback
+      console.error("Failed to parse Gemini schedule output. Raw response:", rawReply);
+      throw new Error("Gagal mengurai jadwal dari AI. Respon tidak valid.");
     }
+  }
+});
+
+// 4. AI Predict Task Duration
+export const predictTaskDuration = action({
+  args: {
+    title: v.string(),
+    subject: v.string(),
+    difficulty: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const prompt = `Kamu adalah asisten akademik. Prediksi estimasi waktu pengerjaan tugas berikut dalam satuan MENIT (hanya angka bulat, tanpa teks lain):
+
+Judul Tugas: ${args.title}
+Mata Kuliah: ${args.subject}
+Tingkat Kesulitan: ${args.difficulty === 'easy' ? 'Mudah' : args.difficulty === 'medium' ? 'Sedang' : 'Sulit'}
+
+Pertimbangkan:
+- Tugas mudah: 30–60 menit
+- Tugas sedang: 60–120 menit  
+- Tugas sulit: 120–240 menit
+- Sesuaikan juga dengan kompleksitas nama mata kuliah dan judul tugasnya
+
+Jawab HANYA dengan satu angka bulat dalam satuan menit. Contoh: 90`;
+
+    const reply = await callGemini(prompt);
+    const cleaned = reply.trim().replace(/[^0-9]/g, '');
+    const minutes = parseInt(cleaned, 10);
+    // Clamp between 15–300 menit, default 60 jika gagal parse
+    return isNaN(minutes) ? 60 : Math.min(Math.max(minutes, 15), 300);
+  }
+});
+
+// 5. AI Generate Skill Material
+export const getSkillMaterial = action({
+  args: {
+    skillTitle: v.string(),
+    description: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const prompt = `Kamu adalah seorang ahli pendidikan. Buatlah ringkasan materi pembelajaran yang "Padat, Jelas, dan Menarik" untuk topik berikut:
+    
+    Topik: ${args.skillTitle}
+    Penjelasan Singkat: ${args.description}
+    
+    Format materi harus terdiri dari:
+    1. 📌 Konsep Inti (Apa itu topik ini?)
+    2. 🚀 Mengapa ini Penting?
+    3. 🛠️ Contoh Praktis / Cara Kerja
+    4. 💡 1 Tips Cepat / Shortcut
+    
+    Gunakan Bahasa Indonesia yang ramah, beri emoji yang relevan. Jangan terlalu panjang, pastikan bisa dibaca dalam 2 menit.`;
+
+    const systemInstruction = "Kamu adalah penulis materi edukasi yang hebat. Gunakan markdown sederhana (seperti bold, bullet points).";
+    const reply = await callGemini(prompt, systemInstruction);
+    return reply;
   }
 });

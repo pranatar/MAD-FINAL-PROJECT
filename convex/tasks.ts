@@ -41,11 +41,29 @@ export const createTask = mutation({
   },
 });
 
-// Mark task as done
+// Mark task as done and award XP
 export const completeTask = mutation({
   args: { taskId: v.id("tasks") },
   handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task || task.completed) return;
+
+    // 1. Mark task as done
     await ctx.db.patch(args.taskId, { completed: true });
+
+    // 2. Award XP to user (50 XP per task)
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), task.userId))
+      .first();
+
+    if (user) {
+      const newXP = user.totalXP + 50;
+      await ctx.db.patch(user._id, {
+        totalXP: newXP,
+        level: Math.floor(newXP / 500) + 1,
+      });
+    }
   },
 });
 
@@ -118,5 +136,52 @@ export const generateSchedule = mutation({
         currentTime.setHours(8, 0, 0, 0);
       }
     }
+  },
+});
+
+// Save AI-generated schedule blocks
+export const saveAISchedule = mutation({
+  args: {
+    userId: v.string(),
+    blocks: v.array(v.object({
+      title: v.string(),
+      subject: v.string(),
+      startTime: v.string(),
+      endTime: v.string(),
+      type: v.union(v.literal("study"), v.literal("review"), v.literal("practice")),
+      durationMinutes: v.optional(v.number()),
+      description: v.optional(v.string()),
+      tips: v.optional(v.string()),
+      priority: v.optional(v.number()),
+      focusTechnique: v.optional(v.string()),
+    })),
+  },
+  handler: async (ctx, args) => {
+    // 1. Clear old schedule blocks for this user
+    const oldBlocks = await ctx.db
+      .query("scheduleBlocks")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    
+    for (const block of oldBlocks) {
+      await ctx.db.delete(block._id);
+    }
+
+    // 2. Insert new blocks
+    for (const block of args.blocks) {
+      await ctx.db.insert("scheduleBlocks", {
+        userId: args.userId,
+        ...block,
+        completed: false,
+      });
+    }
+  },
+});
+
+// Toggle schedule block completion
+export const toggleBlockComplete = mutation({
+  args: { blockId: v.id("scheduleBlocks"), completed: v.boolean() },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.blockId, { completed: args.completed });
   },
 });

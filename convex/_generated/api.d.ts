@@ -9,6 +9,7 @@
  */
 
 import type * as ai from "../ai.js";
+import type * as debug from "../debug.js";
 import type * as sessions from "../sessions.js";
 import type * as skillTree from "../skillTree.js";
 import type * as tasks from "../tasks.js";
@@ -22,6 +23,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
+  debug: typeof debug;
   sessions: typeof sessions;
   skillTree: typeof skillTree;
   tasks: typeof tasks;
