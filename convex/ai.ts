@@ -1,209 +1,314 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 
-// Helper function to call Gemini API via REST
-async function callGemini(prompt: string, systemInstruction?: string) {
+// Helper: try multiple Gemini models
+async function callGemini(prompt: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not set in environment variables");
-  }
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const MODELS = [
+    "gemini-2.5-flash",        // Newest experimental
+    "gemini-2.0-flash-exp",    // Gemini 2.0 Experimental
+    "gemini-1.5-flash-8b",     // Cheapest, highest rate limit
+    "gemini-1.5-flash",        // Standard fast model
+    "gemini-1.5-flash-latest", // Latest flash version
+    "gemini-1.5-pro",          // High quality model
+    "gemini-1.5-pro-latest",   // Latest pro version
+    "gemini-1.0-pro",          // Legacy stable model
+    "gemini-1.0-pro-latest",   // Legacy latest model
+    "gemini-pro"               // Oldest fallback
+  ];
 
-  // Merge systemInstruction into the prompt for maximum compatibility
-  const combinedPrompt = systemInstruction
-    ? `${systemInstruction}\n\nSTUDENT REQUEST: ${prompt}`
-    : prompt;
-
-  const body: any = {
-    contents: [{ role: "user", parts: [{ text: combinedPrompt }] }]
-  };
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
+  const body = JSON.stringify({
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
   });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error("Gemini API Error:", errText);
-    return `[Gemini Error Debug]: ${errText}`;
+  const errors: string[] = [];
+
+  for (const model of MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const errMsg = err?.error?.message || err?.message || res.statusText;
+        errors.push(`${model}: ${errMsg}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const text: string | undefined = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return text;
+    } catch (e: any) {
+      errors.push(`${model}: ${e.message}`);
+      continue;
+    }
   }
 
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, saya tidak bisa merespon saat ini.";
+  throw new Error(`Gemini Error:\n${errors.join('\n')}`);
 }
 
-// 1. AI Chat Tutor Action
+// Helper: try multiple Groq models (Llama, Mixtral, etc)
+async function callGroq(prompt: string): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("GROQ_API_KEY is not set");
+
+  const MODELS = [
+    "llama3-8b-8192",
+    "llama3-70b-8192",
+    "mixtral-8x7b-32768",
+    "gemma-7b-it"
+  ];
+
+  const errors: string[] = [];
+
+  for (const model of MODELS) {
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const errMsg = err?.error?.message || err?.message || res.statusText;
+        errors.push(`Groq ${model}: ${errMsg}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content;
+      if (text) return text;
+    } catch (e: any) {
+      errors.push(`Groq ${model}: ${e.message}`);
+      continue;
+    }
+  }
+
+  throw new Error(`Groq Error:\n${errors.join('\n')}`);
+}
+
+// Master AI Router: Tries Gemini first, if it fails (or no key), tries Groq
+async function callAI(prompt: string): Promise<string> {
+  const errors: string[] = [];
+
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      return await callGemini(prompt);
+    } catch (e: any) {
+      errors.push(e.message);
+    }
+  }
+
+  if (process.env.GROQ_API_KEY) {
+    try {
+      return await callGroq(prompt);
+    } catch (e: any) {
+      errors.push(e.message);
+    }
+  }
+
+  if (errors.length === 0) {
+    throw new Error("Tidak ada kunci API yang dipasang. Tambahkan GEMINI_API_KEY atau GROQ_API_KEY di .env.local");
+  }
+
+  throw new Error(errors.join('\n\n'));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. AI Chat Tutor
+// ─────────────────────────────────────────────────────────────────────────────
 export const chatTutor = action({
   args: {
     message: v.string(),
     mood: v.optional(v.string()),
-    history: v.array(v.object({ role: v.string(), text: v.string() }))
+    history: v.array(v.object({ role: v.string(), text: v.string() })),
   },
-  handler: async (ctx, args) => {
-    const moodContext = args.mood ? `Saat ini student sedang merasa: ${args.mood}. Sesuaikan nada bicara dan tingkat kesabaranmu.` : "";
+  handler: async (_ctx, args) => {
+    const moodCtx = args.mood
+      ? `Saat ini student sedang merasa: ${args.mood}. Sesuaikan nada bicara.`
+      : "";
 
-    // Format history for the prompt context to keep it simple with pure string
-    let historyText = args.history.map(m => `${m.role === 'user' ? 'Student' : 'Tutor'}: ${m.text}`).join('\n');
-    let fullPrompt = `Riwayat percakapan:\n${historyText}\n\nStudent: ${args.message}\nTutor:`;
+    const historyText = args.history
+      .map((m) => `${m.role === "user" ? "Student" : "Tutor"}: ${m.text}`)
+      .join("\n");
 
-    const systemInstruction = `Kamu adalah Tutor AI pintar dan empatik bernama Aivora.
-Bahasa utamamu adalah Bahasa Indonesia yang ramah, asik, semi-formal seperti mentor mahasiswa.
-Tugasmu membimbing belajar, memberikan soal latihan jika diminta, dan terus memotivasi. 
-${moodContext}`;
+    const prompt = `Kamu adalah Tutor AI bernama Aivora. Gunakan Bahasa Indonesia yang ramah dan semi-formal.
+Tugasmu: membimbing belajar, memberikan latihan, dan memotivasi. ${moodCtx}
 
-    const reply = await callGemini(fullPrompt, systemInstruction);
-    return reply;
-  }
+Riwayat percakapan:
+${historyText}
+
+Student: ${args.message}
+Tutor:`;
+
+    return callAI(prompt);
+  },
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
 // 2. AI Study Insights
+// ─────────────────────────────────────────────────────────────────────────────
 export const getInsights = action({
   args: {
     totalStudyMinutes: v.number(),
     streakDays: v.number(),
     completedTasksCount: v.number(),
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     const prompt = `Analisis performa belajar student berikut:
 - Total Menit Belajar: ${args.totalStudyMinutes}
 - Streak Hari Berturut-turut: ${args.streakDays}
 - Tugas diselesaikan: ${args.completedTasksCount}
 
-Berikan 1 paragraf singkat (maksimal 3 kalimat) berupa insight / motivasi personal. Apakah dia kurang belajar, sangat bagus, atau berpotensi burnout? Jangan bertele-tele.`;
+Berikan 1 paragraf singkat (maksimal 3 kalimat) berupa insight dan motivasi personal. Bahasa Indonesia yang ramah.`;
 
-    const reply = await callGemini(prompt, "Kamu adalah AI analis performa belajar.");
-    return reply;
-  }
+    return callAI(prompt);
+  },
 });
 
-// 3. AI Generate Schedule (Adaptive Scheduling)
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. AI Generate Schedule
+// ─────────────────────────────────────────────────────────────────────────────
 export const generateSchedule = action({
   args: {
-    tasks: v.array(v.object({
-      title: v.string(),
-      subject: v.string(),
-      estimatedMinutes: v.number(),
-      difficulty: v.string()
-    }))
+    tasks: v.array(
+      v.object({
+        title: v.string(),
+        subject: v.string(),
+        estimatedMinutes: v.number(),
+        difficulty: v.string(),
+      })
+    ),
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     const tasksData = JSON.stringify(args.tasks);
-    const prompt = `Berikut adalah daftar tugas yang belum selesai:
+    const prompt = `Kamu adalah asisten jadwal belajar. Buat jadwal belajar dari tugas berikut:
 ${tasksData}
 
-Tugasmu mengonversi tugas ini menjadi blok-blok jadwal belajar yang DETAIL dan bermanfaat menggunakan teknik Pomodoro.
-Pecah tugas sulit/panjang menjadi sesi "study" maksimal 45 menit per blok, dan tambahkan sesi "review" atau "practice" sesuai intuisi.
-Jangan gunakan waktu spesifik seperti "08:00", cukup gunakan label waktu tentatif (e.g., "Sesi Pagi 1", "Sesi Siang 1", "Sesi Sore 1").
-
-Untuk setiap blok jadwal, berikan informasi LENGKAP berikut:
-- title: judul singkat sesi belajar
-- subject: nama mata kuliah/topik
-- startTime & endTime: label waktu tentatif (Sesi Pagi 1, dll)
-- type: "study" | "review" | "practice"
-- durationMinutes: estimasi durasi dalam menit (angka)
-- description: deskripsi 1-2 kalimat tentang APA yang harus dikerjakan pada sesi ini secara spesifik
-- tips: 1 tips belajar praktis dan spesifik untuk sesi ini (Bahasa Indonesia, singkat, actionable)
-- priority: angka 1-3 (1=rendah, 2=sedang, 3=tinggi) berdasarkan urgensi tugas
-- focusTechnique: teknik belajar yang disarankan, pilih salah satu: "Pomodoro", "Active Recall", "Mind Mapping", "Spaced Repetition", "Feynman Technique", "Practice Problems"
-
-Kembalikan HANYA format JSON valid sebuah array of objects:
+Buat blok jadwal menggunakan teknik Pomodoro (maks 45 menit per sesi).
+Kembalikan HANYA JSON array valid seperti ini, tanpa backtick atau teks lain:
 [
   {
-    "title": "...",
-    "subject": "...",
+    "title": "Judul sesi",
+    "subject": "Mata kuliah",
     "startTime": "Sesi Pagi 1",
     "endTime": "Sesi Pagi 2",
     "type": "study",
     "durationMinutes": 45,
-    "description": "...",
-    "tips": "...",
+    "description": "Apa yang dikerjakan di sesi ini",
+    "tips": "1 tips belajar praktis",
     "priority": 2,
     "focusTechnique": "Pomodoro"
   }
 ]
-Tanpa backticks atau markdown. HANYA valid JSON.`;
+type harus salah satu dari: "study", "review", atau "practice".`;
 
-    const rawReply = await callGemini(prompt);
-
-    if (rawReply.includes("[Gemini Error Debug]")) {
-      throw new Error(`Gemini API Error: ${rawReply}`);
-    }
+    const rawReply = await callAI(prompt);
 
     try {
-      // Robust JSON extraction: find the first '[' and last ']'
-      const startIdx = rawReply.indexOf('[');
-      const endIdx = rawReply.lastIndexOf(']');
-
+      const startIdx = rawReply.indexOf("[");
+      const endIdx = rawReply.lastIndexOf("]");
       if (startIdx === -1 || endIdx === -1) {
-        console.error("AI response does not contain a JSON array:", rawReply);
+        console.error("No JSON array in AI response:", rawReply);
         return [];
       }
-
-      const jsonStr = rawReply.substring(startIdx, endIdx + 1);
-      const scheduleLines = JSON.parse(jsonStr);
-      return scheduleLines;
+      const parsed = JSON.parse(rawReply.substring(startIdx, endIdx + 1));
+      // Sanitize type field
+      return parsed.map((r: any) => ({
+        ...r,
+        type: ["study", "review", "practice"].includes(r.type) ? r.type : "study",
+      }));
     } catch (e) {
-      console.error("Failed to parse Gemini schedule output. Raw response:", rawReply);
-      throw new Error("Gagal mengurai jadwal dari AI. Respon tidak valid.");
+      console.error("Failed to parse schedule JSON:", rawReply);
+      throw new Error("AI memberikan jadwal yang tidak bisa dibaca. Coba lagi.");
     }
-  }
+  },
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
 // 4. AI Predict Task Duration
+// ─────────────────────────────────────────────────────────────────────────────
 export const predictTaskDuration = action({
   args: {
     title: v.string(),
     subject: v.string(),
     difficulty: v.string(),
   },
-  handler: async (ctx, args) => {
-    const prompt = `Kamu adalah asisten akademik. Prediksi estimasi waktu pengerjaan tugas berikut dalam satuan MENIT (hanya angka bulat, tanpa teks lain):
+  handler: async (_ctx, args) => {
+    const diffLabel =
+      args.difficulty === "easy" ? "Mudah" : args.difficulty === "medium" ? "Sedang" : "Sulit";
 
-Judul Tugas: ${args.title}
+    const prompt = `Prediksi estimasi waktu (dalam menit, hanya angka bulat) untuk tugas:
+Judul: ${args.title}
 Mata Kuliah: ${args.subject}
-Tingkat Kesulitan: ${args.difficulty === 'easy' ? 'Mudah' : args.difficulty === 'medium' ? 'Sedang' : 'Sulit'}
+Tingkat Kesulitan: ${diffLabel}
 
-Pertimbangkan:
-- Tugas mudah: 30–60 menit
-- Tugas sedang: 60–120 menit  
-- Tugas sulit: 120–240 menit
-- Sesuaikan juga dengan kompleksitas nama mata kuliah dan judul tugasnya
+Jawab HANYA dengan satu angka. Contoh: 90`;
 
-Jawab HANYA dengan satu angka bulat dalam satuan menit. Contoh: 90`;
-
-    const reply = await callGemini(prompt);
-    const cleaned = reply.trim().replace(/[^0-9]/g, '');
-    const minutes = parseInt(cleaned, 10);
-    // Clamp between 15–300 menit, default 60 jika gagal parse
+    const reply = await callAI(prompt);
+    const minutes = parseInt(reply.trim().replace(/[^0-9]/g, ""), 10);
     return isNaN(minutes) ? 60 : Math.min(Math.max(minutes, 15), 300);
-  }
+  },
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
 // 5. AI Generate Skill Material
+// ─────────────────────────────────────────────────────────────────────────────
 export const getSkillMaterial = action({
   args: {
     skillTitle: v.string(),
     description: v.string(),
   },
-  handler: async (ctx, args) => {
-    const prompt = `Kamu adalah seorang ahli pendidikan. Buatlah ringkasan materi pembelajaran yang "Padat, Jelas, dan Menarik" untuk topik berikut:
-    
-    Topik: ${args.skillTitle}
-    Penjelasan Singkat: ${args.description}
-    
-    Format materi harus terdiri dari:
-    1. 📌 Konsep Inti (Apa itu topik ini?)
-    2. 🚀 Mengapa ini Penting?
-    3. 🛠️ Contoh Praktis / Cara Kerja
-    4. 💡 1 Tips Cepat / Shortcut
-    
-    Gunakan Bahasa Indonesia yang ramah, beri emoji yang relevan. Jangan terlalu panjang, pastikan bisa dibaca dalam 2 menit.`;
+  handler: async (_ctx, args) => {
+    const prompt = `Kamu adalah ahli pendidikan Indonesia. Buat materi belajar yang LENGKAP dan MENARIK untuk:
 
-    const systemInstruction = "Kamu adalah penulis materi edukasi yang hebat. Gunakan markdown sederhana (seperti bold, bullet points).";
-    const reply = await callGemini(prompt, systemInstruction);
-    return reply;
-  }
+Topik: ${args.skillTitle}
+Deskripsi: ${args.description}
+
+Gunakan format ini PERSIS (dengan ## untuk judul):
+
+## 📌 Apa Itu ${args.skillTitle}?
+Jelaskan konsep utama dalam 2-3 kalimat sederhana.
+
+## 🎯 Mengapa Ini Penting?
+- Alasan 1 yang konkret
+- Alasan 2 yang konkret
+- Alasan 3 yang konkret
+
+## 🛠️ Cara Kerja & Contoh Nyata
+Berikan 1 contoh konkret dengan analogi sehari-hari.
+
+**Contoh:**
+Tulis contoh singkat di sini.
+
+## 📚 Konsep Kunci
+- **Konsep 1:** Penjelasan singkat
+- **Konsep 2:** Penjelasan singkat
+- **Konsep 3:** Penjelasan singkat
+
+## 💡 Tips Belajar Cepat
+1 tips praktis yang bisa langsung dipraktikkan.
+
+## ✅ Langkah Belajar Selanjutnya
+1. Langkah pertama
+2. Langkah kedua
+3. Langkah ketiga
+
+Gunakan Bahasa Indonesia yang ramah dan memotivasi.`;
+
+    return callAI(prompt);
+  },
 });

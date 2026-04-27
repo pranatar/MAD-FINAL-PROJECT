@@ -49,9 +49,10 @@ export default function AITutorScreen() {
       });
 
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'tutor', text: reply }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'tutor', text: 'Maaf, server AI sedang sibuk. Coba lagi nanti ya!' }]);
+      const errMsg = error?.data?.message || error?.message || 'Error tidak diketahui';
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'tutor', text: `❌ Error: ${errMsg}` }]);
     } finally {
       setLoading(false);
     }

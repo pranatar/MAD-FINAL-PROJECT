@@ -5,18 +5,17 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Modal,
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Palette } from '@/constants/theme';
-import { useQuery, useAction } from 'convex/react';
+import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const USER_ID = "s22310459@student.unklab.ac.id";
 
 interface SkillNode {
@@ -30,16 +29,15 @@ interface SkillNode {
   category: 'coding' | 'math' | 'general';
 }
 
-// Easier XP Requirements (reduced by ~50%)
 const SKILL_NODES: SkillNode[] = [
-  { id: 'foundations', title: 'Dasar Belajar', icon: '🌱', description: 'Langkah awal untuk membangun kebiasaan belajar yang efektif.', xpRequired: 0, unlocked: true, completed: false, category: 'general' },
-  { id: 'basic-prog', title: 'Dasar Pemrograman', icon: '💻', description: 'Pahami logika komputer, variabel, dan alur program.', xpRequired: 50, unlocked: false, completed: false, category: 'coding' },
-  { id: 'math-basic', title: 'Matematika Dasar', icon: '➕', description: 'Asah logika berhitung dan pemecahan masalah angka.', xpRequired: 100, unlocked: false, completed: false, category: 'math' },
-  { id: 'logic-master', title: 'Master Logika', icon: '🧠', description: 'Tingkatkan kemampuan berpikir kritis dan problem solving.', xpRequired: 200, unlocked: false, completed: false, category: 'coding' },
-  { id: 'calculus', title: 'Kalkulus Seru', icon: '📐', description: 'Pelajari konsep perubahan melalui limit dan turunan.', xpRequired: 350, unlocked: false, completed: false, category: 'math' },
-  { id: 'data-struct', title: 'Struktur Data', icon: '🗂️', description: 'Cara efisien menyimpan dan mengatur informasi di komputer.', xpRequired: 500, unlocked: false, completed: false, category: 'coding' },
-  { id: 'statistics', title: 'Ahli Statistika', icon: '📊', description: 'Analisis tren dan probabilitas dari data dunia nyata.', xpRequired: 700, unlocked: false, completed: false, category: 'math' },
-  { id: 'algorithms', title: 'Ninja Algoritma', icon: '⚡', description: 'Gunakan langkah-langkah jenius untuk solusi tercepat.', xpRequired: 1000, unlocked: false, completed: false, category: 'coding' },
+  { id: 'foundations',  title: 'Dasar Belajar',      icon: '🌱', description: 'Langkah awal untuk membangun kebiasaan belajar yang efektif.', xpRequired: 0,   unlocked: true,  completed: false, category: 'general' },
+  { id: 'basic-prog',   title: 'Dasar Pemrograman',  icon: '💻', description: 'Pahami logika komputer, variabel, dan alur program.',            xpRequired: 0,   unlocked: true,  completed: false, category: 'coding' },
+  { id: 'math-basic',   title: 'Matematika Dasar',   icon: '➕', description: 'Asah logika berhitung dan pemecahan masalah angka.',              xpRequired: 50,  unlocked: false, completed: false, category: 'math'   },
+  { id: 'logic-master', title: 'Master Logika',      icon: '🧠', description: 'Tingkatkan kemampuan berpikir kritis dan problem solving.',       xpRequired: 100, unlocked: false, completed: false, category: 'coding' },
+  { id: 'calculus',     title: 'Kalkulus Seru',      icon: '📐', description: 'Pelajari konsep perubahan melalui limit dan turunan.',            xpRequired: 150, unlocked: false, completed: false, category: 'math'   },
+  { id: 'data-struct',  title: 'Struktur Data',      icon: '🗂️', description: 'Cara efisien menyimpan dan mengatur informasi di komputer.',     xpRequired: 200, unlocked: false, completed: false, category: 'coding' },
+  { id: 'statistics',   title: 'Ahli Statistika',    icon: '📊', description: 'Analisis tren dan probabilitas dari data dunia nyata.',           xpRequired: 250, unlocked: false, completed: false, category: 'math'   },
+  { id: 'algorithms',   title: 'Ninja Algoritma',    icon: '⚡', description: 'Gunakan langkah-langkah jenius untuk solusi tercepat.',           xpRequired: 300, unlocked: false, completed: false, category: 'coding' },
 ];
 
 const BADGES = [
@@ -57,28 +55,20 @@ const CATEGORY_COLOR: Record<string, string> = {
 
 export default function SkillTreeScreen() {
   const router = useRouter();
-  const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
   const [activeTab, setActiveTab] = useState<'tree' | 'badges'>('tree');
-  const [skillMaterial, setSkillMaterial] = useState<string | null>(null);
-  const [isLoadingMaterial, setIsLoadingMaterial] = useState(false);
 
-  const getMaterialAction = useAction(api.ai.getSkillMaterial);
-
-  const handleSelectNode = async (node: SkillNode) => {
-    setSelectedNode(node);
-    setSkillMaterial(null);
-    setIsLoadingMaterial(true);
-    try {
-      const material = await getMaterialAction({
+  const handleSelectNode = (node: SkillNode) => {
+    router.push({
+      pathname: '/skill-material',
+      params: {
         skillTitle: node.title,
-        description: node.description
-      });
-      setSkillMaterial(material);
-    } catch (err) {
-      setSkillMaterial("Gagal memuat materi. Silakan coba lagi.");
-    } finally {
-      setIsLoadingMaterial(false);
-    }
+        description: node.description,
+        icon: node.icon,
+        category: node.category,
+        xpRequired: String(node.xpRequired),
+        status: node.completed ? 'Dikuasai' : 'Aktif',
+      },
+    });
   };
 
   const user = useQuery(api.users.getUser, { email: USER_ID });
@@ -87,7 +77,7 @@ export default function SkillTreeScreen() {
 
   const dynamicNodes = SKILL_NODES.map((node) => {
     const isUnlocked = totalXP >= node.xpRequired;
-    const isCompleted = totalXP >= node.xpRequired + 100; // Easier completion (+100 instead of +150)
+    const isCompleted = totalXP >= node.xpRequired + 100;
     return { ...node, unlocked: isUnlocked, completed: isCompleted };
   });
 
@@ -103,13 +93,7 @@ export default function SkillTreeScreen() {
 
   userBadges.forEach((bTitle, i) => {
     if (!dynamicBadges.find((b) => b.title === bTitle)) {
-      dynamicBadges.push({
-        id: `user-badge-${i}`,
-        title: bTitle,
-        icon: '🏅',
-        desc: `Pencapaian Level Up!`,
-        earned: true,
-      });
+      dynamicBadges.push({ id: `user-badge-${i}`, title: bTitle, icon: '🏅', desc: 'Pencapaian Level Up!', earned: true });
     }
   });
 
@@ -123,7 +107,7 @@ export default function SkillTreeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header Premium */}
+      {/* Header */}
       <LinearGradient colors={[Palette.dark.surface, Palette.dark.bg]} style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Skill Path 🚀</Text>
@@ -159,42 +143,33 @@ export default function SkillTreeScreen() {
                   <Text style={styles.nextSkill}>{nextUnlock.icon} {nextUnlock.title}</Text>
                 </View>
                 <View style={styles.progressBarBg}>
-                  <View style={[styles.progressBarFill, { width: `${Math.min(100, (totalXP / nextUnlock.xpRequired) * 100)}%` }]} />
+                  <View style={[styles.progressBarFill, { width: `${Math.min(100, (totalXP / nextUnlock.xpRequired) * 100)}%` as any }]} />
                 </View>
                 <Text style={styles.progressText}>{totalXP} / {nextUnlock.xpRequired} XP</Text>
               </View>
             )}
 
-            {/* Simple Vertical Path */}
+            {/* Skill Path */}
             {dynamicNodes.map((node, index) => {
               const catColor = CATEGORY_COLOR[node.category];
               const isLocked = !node.unlocked;
-              
               return (
                 <View key={node.id} style={styles.nodeWrapper}>
-                  {/* Line connector */}
                   {index < dynamicNodes.length - 1 && (
                     <View style={[styles.line, { backgroundColor: node.completed ? catColor : Palette.dark.border }]} />
                   )}
-                  
                   <TouchableOpacity
-                    style={[
-                      styles.nodeCard,
-                      isLocked && styles.nodeCardLocked,
-                      { borderColor: isLocked ? Palette.dark.border : catColor }
-                    ]}
+                    style={[styles.nodeCard, isLocked && styles.nodeCardLocked, { borderColor: isLocked ? Palette.dark.border : catColor }]}
                     onPress={() => !isLocked && handleSelectNode(node)}
                     activeOpacity={0.7}
                   >
                     <View style={[styles.iconCircle, { backgroundColor: isLocked ? Palette.dark.border : catColor + '20' }]}>
                       <Text style={[styles.nodeIcon, isLocked && { opacity: 0.3 }]}>{isLocked ? '🔒' : node.icon}</Text>
                     </View>
-                    
                     <View style={styles.nodeContent}>
                       <Text style={[styles.nodeTitle, isLocked && { color: Palette.dark.textMuted }]}>{node.title}</Text>
                       <Text style={styles.nodeXP}>{node.xpRequired} XP Dibutuhkan</Text>
                     </View>
-
                     {node.completed ? (
                       <View style={[styles.statusBadge, { backgroundColor: Palette.success }]}>
                         <Text style={styles.statusText}>✓</Text>
@@ -226,53 +201,6 @@ export default function SkillTreeScreen() {
           </View>
         )}
       </ScrollView>
-
-      {/* Modern Detail Modal */}
-      <Modal visible={!!selectedNode} transparent animationType="slide">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalIcon}>{selectedNode?.icon}</Text>
-            <Text style={styles.modalTitle}>{selectedNode?.title}</Text>
-            <Text style={styles.modalDesc}>{selectedNode?.description}</Text>
-            
-            <View style={styles.modalStats}>
-              <View style={styles.modalStatItem}>
-                <Text style={styles.statLabel}>Status</Text>
-                <Text style={[styles.statValue, { color: selectedNode?.completed ? Palette.success : Palette.primary }]}>
-                  {selectedNode?.completed ? 'Dikuasai' : 'Sedang Dipelajari'}
-                </Text>
-              </View>
-              <View style={styles.modalStatItem}>
-                <Text style={styles.statLabel}>Syarat</Text>
-                <Text style={styles.statValue}>{selectedNode?.xpRequired} XP</Text>
-              </View>
-            </View>
-
-            {/* AI Material Section */}
-            <View style={styles.materialSection}>
-              <Text style={styles.materialHeader}>📖 Materi Pembelajaran (AI)</Text>
-              <ScrollView style={styles.materialScroll} showsVerticalScrollIndicator={true}>
-                {isLoadingMaterial ? (
-                  <ActivityIndicator size="small" color={Palette.primary} style={{ marginTop: 20 }} />
-                ) : (
-                  <Text style={styles.materialText}>{skillMaterial || "Memuat materi..."}</Text>
-                )}
-              </ScrollView>
-            </View>
-
-            <TouchableOpacity 
-              style={styles.actionBtn} 
-              onPress={() => { setSelectedNode(null); router.push('/calendar'); }}
-            >
-              <Text style={styles.actionBtnText}>Pelajari Sekarang</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setSelectedNode(null)}>
-              <Text style={styles.closeBtnText}>Tutup</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -304,10 +232,7 @@ const styles = StyleSheet.create({
 
   nodeWrapper: { alignItems: 'center', marginBottom: 0 },
   line: { width: 4, height: 40, backgroundColor: Palette.dark.border },
-  nodeCard: { 
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.dark.surface, 
-    width: '100%', padding: 15, borderRadius: 20, borderWidth: 1.5, position: 'relative' 
-  },
+  nodeCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.dark.surface, width: '100%', padding: 15, borderRadius: 20, borderWidth: 1.5 },
   nodeCardLocked: { opacity: 0.7, borderStyle: 'dashed' },
   iconCircle: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', marginRight: 15 },
   nodeIcon: { fontSize: 28 },
@@ -326,23 +251,4 @@ const styles = StyleSheet.create({
   earnedLabel: { fontSize: 9, fontWeight: 'bold', color: Palette.success },
   lockedLabel: { fontSize: 9, fontWeight: 'bold', color: Palette.dark.textMuted },
 
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 30 },
-  modalContent: { backgroundColor: Palette.dark.surface, width: '100%', borderRadius: 30, padding: 30, alignItems: 'center' },
-  modalIcon: { fontSize: 70, marginBottom: 15 },
-  modalTitle: { fontSize: 24, fontWeight: '900', color: Palette.dark.text, textAlign: 'center' },
-  modalDesc: { fontSize: 15, color: Palette.dark.textMuted, textAlign: 'center', marginTop: 10, lineHeight: 22 },
-  modalStats: { flexDirection: 'row', gap: 30, marginVertical: 25 },
-  modalStatItem: { alignItems: 'center' },
-  statLabel: { fontSize: 11, color: Palette.dark.textMuted, fontWeight: 'bold', textTransform: 'uppercase' },
-  statValue: { fontSize: 14, fontWeight: '800', marginTop: 5, color: Palette.dark.text },
-
-  materialSection: { width: '100%', backgroundColor: Palette.dark.bg, borderRadius: 15, padding: 15, marginBottom: 20, maxHeight: 250 },
-  materialHeader: { fontSize: 13, fontWeight: 'bold', color: Palette.primary, marginBottom: 10 },
-  materialScroll: { flexGrow: 0 },
-  materialText: { fontSize: 13, color: Palette.dark.text, lineHeight: 20 },
-
-  actionBtn: { backgroundColor: Palette.primary, width: '100%', paddingVertical: 15, borderRadius: 15, alignItems: 'center' },
-  actionBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  closeBtn: { marginTop: 15 },
-  closeBtnText: { color: Palette.dark.textMuted, fontWeight: '600' },
 });

@@ -126,7 +126,7 @@ export default function HomeScreen() {
             <Text style={styles.actionLabel}>Statistik</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionItem} onPress={() => router.push('/chat')}>
+          <TouchableOpacity style={styles.actionItem} onPress={() => router.push('/(tabs)/ai-tutor')}>
             <View style={[styles.actionIcon, { backgroundColor: Palette.energy + '30' }]}>
               <Text style={styles.actionEmoji}>🤖</Text>
             </View>

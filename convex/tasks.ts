@@ -58,7 +58,7 @@ export const completeTask = mutation({
       .first();
 
     if (user) {
-      const newXP = user.totalXP + 50;
+      const newXP = user.totalXP + 100;
       await ctx.db.patch(user._id, {
         totalXP: newXP,
         level: Math.floor(newXP / 500) + 1,

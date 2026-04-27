@@ -2,14 +2,14 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 const INITIAL_NODES = [
-  { nodeId: "foundations", category: "coding", title: "Foundations", description: "Start your journey", xpRequired: 0, icon: "🌱", parentNodeId: undefined },
-  { nodeId: "basic-programming", category: "coding", title: "Basic Programming", description: "Variables, loops & conditions", xpRequired: 100, icon: "💻", parentNodeId: "foundations" },
-  { nodeId: "logic-master", category: "coding", title: "Logic Master", description: "Advanced problem solving", xpRequired: 300, icon: "🧠", parentNodeId: "basic-programming" },
-  { nodeId: "data-structures", category: "coding", title: "Data Structures", description: "Arrays, stacks & queues", xpRequired: 500, icon: "🗂️", parentNodeId: "logic-master" },
-  { nodeId: "algorithms", category: "coding", title: "Algorithm Ninja", description: "Sorting, searching & optimization", xpRequired: 800, icon: "⚡", parentNodeId: "data-structures" },
-  { nodeId: "math-basic", category: "math", title: "Math Basics", description: "Arithmetic & algebra", xpRequired: 0, icon: "➕", parentNodeId: "foundations" },
-  { nodeId: "calculus", category: "math", title: "Calculus", description: "Derivatives & integrals", xpRequired: 200, icon: "📐", parentNodeId: "math-basic" },
-  { nodeId: "statistics", category: "math", title: "Statistics", description: "Data analysis & probability", xpRequired: 400, icon: "📊", parentNodeId: "calculus" },
+  { nodeId: "foundations", category: "general", title: "Dasar Belajar", description: "Langkah awal membangun kebiasaan belajar", xpRequired: 0, icon: "🌱", parentNodeId: undefined },
+  { nodeId: "basic-programming", category: "coding", title: "Dasar Pemrograman", description: "Variables, loops & conditions", xpRequired: 0, icon: "💻", parentNodeId: "foundations" },
+  { nodeId: "math-basic", category: "math", title: "Matematika Dasar", description: "Arithmetic & algebra", xpRequired: 50, icon: "➕", parentNodeId: "foundations" },
+  { nodeId: "logic-master", category: "coding", title: "Master Logika", description: "Advanced problem solving", xpRequired: 100, icon: "🧠", parentNodeId: "basic-programming" },
+  { nodeId: "calculus", category: "math", title: "Kalkulus Seru", description: "Derivatives & integrals", xpRequired: 150, icon: "📐", parentNodeId: "math-basic" },
+  { nodeId: "data-structures", category: "coding", title: "Struktur Data", description: "Arrays, stacks & queues", xpRequired: 200, icon: "🗂️", parentNodeId: "logic-master" },
+  { nodeId: "statistics", category: "math", title: "Ahli Statistika", description: "Data analysis & probability", xpRequired: 250, icon: "📊", parentNodeId: "calculus" },
+  { nodeId: "algorithms", category: "coding", title: "Ninja Algoritma", description: "Sorting, searching & optimization", xpRequired: 300, icon: "⚡", parentNodeId: "data-structures" },
 ];
 
 // Initialize skill tree for a user
