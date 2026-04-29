@@ -167,7 +167,7 @@ export default function LoginScreen() {
               />
             </View>
             <Text style={styles.title}>Aivora</Text>
-            <Text style={styles.subtitle}>Partner Belajar AI Kamu</Text>
+            <Text style={styles.subtitle}>Mobile Learning for Quality Education</Text>
           </View>
 
           <View style={styles.glassFormContainer}>
