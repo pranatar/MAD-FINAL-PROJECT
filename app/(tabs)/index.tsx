@@ -188,11 +188,43 @@ const styles = StyleSheet.create({
   },
   emptyTaskText: { color: Palette.dark.textMuted, fontSize: 14 },
 
-  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 15, marginBottom: 20 },
-  actionItem: { width: (width - 55) / 2, backgroundColor: Palette.dark.surface, padding: 15, borderRadius: 22, alignItems: 'center', borderWidth: 1, borderColor: Palette.dark.border },
-  actionIcon: { width: 50, height: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  actionEmoji: { fontSize: 24 },
-  actionLabel: { fontSize: 14, fontWeight: '700', color: Palette.dark.text },
+  actionGrid: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    justifyContent: 'space-between',
+    marginBottom: 10 
+  },
+  actionItem: { 
+    width: '48%', 
+    backgroundColor: Palette.dark.surface, 
+    paddingVertical: 22, 
+    borderRadius: 24, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    borderWidth: 1, 
+    borderColor: Palette.dark.border,
+    marginBottom: 15,
+    // Add a subtle shadow for depth
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  actionIcon: { 
+    width: 56, 
+    height: 56, 
+    borderRadius: 20, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  actionEmoji: { fontSize: 26 },
+  actionLabel: { fontSize: 14, fontWeight: '800', color: Palette.dark.text, letterSpacing: 0.3 },
 
-  footerSpacer: { height: 40 },
+
+  footerSpacer: { height: 120 },
+
 });

@@ -7,16 +7,11 @@ async function callGemini(prompt: string): Promise<string> {
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
 
   const MODELS = [
-    "gemini-2.5-flash",        // Newest experimental
-    "gemini-2.0-flash-exp",    // Gemini 2.0 Experimental
-    "gemini-1.5-flash-8b",     // Cheapest, highest rate limit
-    "gemini-1.5-flash",        // Standard fast model
-    "gemini-1.5-flash-latest", // Latest flash version
-    "gemini-1.5-pro",          // High quality model
-    "gemini-1.5-pro-latest",   // Latest pro version
-    "gemini-1.0-pro",          // Legacy stable model
-    "gemini-1.0-pro-latest",   // Legacy latest model
-    "gemini-pro"               // Oldest fallback
+    "gemini-1.5-flash",        // Primary stable fast model
+    "gemini-1.5-flash-8b",     // High rate limit
+    "gemini-1.5-pro",          // High quality
+    "gemini-2.0-flash-exp",    // Experimental 2.0
+    "gemini-1.0-pro",          // Legacy stable
   ];
 
   const body = JSON.stringify({
@@ -26,27 +21,32 @@ async function callGemini(prompt: string): Promise<string> {
   const errors: string[] = [];
 
   for (const model of MODELS) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body,
-      });
+    // Try both v1 and v1beta as some models are only in one or the other
+    const versions = ["v1beta", "v1"];
+    
+    for (const version of versions) {
+      const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`;
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+        });
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        const errMsg = err?.error?.message || err?.message || res.statusText;
-        errors.push(`${model}: ${errMsg}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          const errMsg = err?.error?.message || err?.message || res.statusText;
+          errors.push(`${model} (${version}): ${errMsg}`);
+          continue;
+        }
+
+        const data = await res.json();
+        const text: string | undefined = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text;
+      } catch (e: any) {
+        errors.push(`${model} (${version}): ${e.message}`);
         continue;
       }
-
-      const data = await res.json();
-      const text: string | undefined = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return text;
-    } catch (e: any) {
-      errors.push(`${model}: ${e.message}`);
-      continue;
     }
   }
 
@@ -59,10 +59,11 @@ async function callGroq(prompt: string): Promise<string> {
   if (!apiKey) throw new Error("GROQ_API_KEY is not set");
 
   const MODELS = [
-    "llama3-8b-8192",
-    "llama3-70b-8192",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-70b-versatile",
+    "llama-3.1-8b-instant",
     "mixtral-8x7b-32768",
-    "gemma-7b-it"
+    "gemma2-9b-it"
   ];
 
   const errors: string[] = [];
