@@ -52,6 +52,11 @@ export default defineSchema({
     endTime: v.string(),
     completed: v.boolean(),
     type: v.union(v.literal("study"), v.literal("review"), v.literal("practice")),
+    durationMinutes: v.optional(v.number()),
+    description: v.optional(v.string()),
+    tips: v.optional(v.string()),
+    priority: v.optional(v.number()),
+    focusTechnique: v.optional(v.string()),
   }).index("by_user", ["userId"]),
 
   // Skill tree nodes

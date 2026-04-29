@@ -14,14 +14,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAction, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Palette } from '@/constants/theme';
+import { useAuth } from '@/context/AuthContext';
 
 const CATEGORY_COLOR: Record<string, string> = {
   coding: Palette.primary,
   math: Palette.accent,
   general: Palette.success,
 };
-
-const USER_ID = "s22310459@student.unklab.ac.id";
 
 // ── Rich Markdown-like Renderer ────────────────────────────────────────────────
 function RichContent({ text, catColor }: { text: string; catColor: string }) {
@@ -98,6 +97,7 @@ function renderInline(text: string): React.ReactNode {
 // ── Main Screen ─────────────────────────────────────────────────────────────────
 export default function SkillMaterialScreen() {
   const router = useRouter();
+  const { user: authUser } = useAuth();
   const params = useLocalSearchParams<{
     skillTitle: string;
     description: string;
@@ -107,12 +107,17 @@ export default function SkillMaterialScreen() {
     status: string;
   }>();
 
+  const USER_ID = authUser?.email || "";
+
   const [material, setMaterial] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [hasClaimed, setHasClaimed] = useState(false);
 
   const getMaterialAction = useAction(api.ai.getSkillMaterial);
   const createTask = useMutation(api.tasks.createTask);
+  const addXP = useMutation(api.users.addXP);
   const catColor = CATEGORY_COLOR[params.category] ?? Palette.primary;
 
   useEffect(() => {
@@ -161,6 +166,25 @@ export default function SkillMaterialScreen() {
     }
   };
 
+  const handleClaimXP = async () => {
+    if (hasClaimed) return;
+    setIsClaiming(true);
+    try {
+      await addXP({ userId: USER_ID, xp: 50 });
+      setHasClaimed(true);
+      Alert.alert(
+        '🎉 Selamat!',
+        `Anda berhasil mendapatkan 50 XP untuk materi "${params.skillTitle}". XP ini akan membantu membuka materi selanjutnya!`,
+        [{ text: 'Mantap!' }]
+      );
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Gagal', 'Gagal mengklaim XP. Coba lagi.');
+    } finally {
+      setIsClaiming(false);
+    }
+  };
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Palette.dark.bg} />
@@ -205,17 +229,33 @@ export default function SkillMaterialScreen() {
       {/* ── PINNED FOOTER ── */}
       {!isLoading && (
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.scheduleBtn, { backgroundColor: catColor, opacity: isScheduling ? 0.7 : 1 }]}
-            onPress={handleSchedule}
-            disabled={isScheduling}
-          >
-            {isScheduling ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.scheduleBtnText}>📅  Jadwalkan Materi Ini</Text>
-            )}
-          </TouchableOpacity>
+          <View style={styles.footerActions}>
+            <TouchableOpacity
+              style={[styles.claimBtn, { opacity: (isClaiming || hasClaimed) ? 0.6 : 1 }]}
+              onPress={handleClaimXP}
+              disabled={isClaiming || hasClaimed}
+            >
+              {isClaiming ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.claimBtnText}>
+                  {hasClaimed ? '✅ XP Diklaim' : '🎁 Klaim 50 XP'}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.scheduleBtn, { backgroundColor: catColor, opacity: isScheduling ? 0.7 : 1 }]}
+              onPress={handleSchedule}
+              disabled={isScheduling}
+            >
+              {isScheduling ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.scheduleBtnText}>📅 Jadwalkan</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </View>
@@ -287,6 +327,22 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.dark.bg,
     borderTopWidth: 1, borderTopColor: Palette.dark.border,
   },
-  scheduleBtn: { borderRadius: 16, paddingVertical: 17, alignItems: 'center' },
-  scheduleBtnText: { color: '#fff', fontWeight: '800', fontSize: 17 },
+  footerActions: { flexDirection: 'row', gap: 12 },
+  claimBtn: { 
+    flex: 1.2, 
+    backgroundColor: '#7e22ce', 
+    borderRadius: 16, 
+    paddingVertical: 17, 
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  claimBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  scheduleBtn: { 
+    flex: 1, 
+    borderRadius: 16, 
+    paddingVertical: 17, 
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scheduleBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
 });

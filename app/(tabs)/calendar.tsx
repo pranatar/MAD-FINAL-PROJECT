@@ -16,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Palette } from '@/constants/theme';
 import { useAction, useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { useAuth } from '@/context/AuthContext';
+
 
 // ── Preset options ──────────────────────────────────────────────
 const PRESET_SUBJECTS = [
@@ -109,9 +111,9 @@ const BLOCK_TYPE_COLORS = {
   practice: Palette.energy,
 };
 
-const USER_ID = "s22310459@student.unklab.ac.id";
-
 export default function CalendarScreen() {
+  const { user: authUser } = useAuth();
+  const USER_ID = authUser?.email || "";
   // Use real data from Convex for tasks and schedule
   const dbTasks = useQuery(api.tasks.getTasks, { userId: USER_ID });
   const dbSchedule = useQuery(api.tasks.getScheduleBlocks, { userId: USER_ID });

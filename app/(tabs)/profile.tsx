@@ -7,10 +7,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const email = "s22310459@student.unklab.ac.id";
+  const { user: authUser, signOut } = useAuth();
+  const email = authUser?.email || "";
   const user = useQuery(api.users.getUser, { email });
 
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -25,7 +27,8 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut();
     router.replace('/(auth)/login');
   };
 

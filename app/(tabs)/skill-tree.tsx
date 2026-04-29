@@ -14,9 +14,10 @@ import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '@/context/AuthContext';
+
 
 const { width, height } = Dimensions.get('window');
-const USER_ID = "s22310459@student.unklab.ac.id";
 
 interface SkillNode {
   id: string;
@@ -55,6 +56,8 @@ const CATEGORY_COLOR: Record<string, string> = {
 
 export default function SkillTreeScreen() {
   const router = useRouter();
+  const { user: authUser } = useAuth();
+  const USER_ID = authUser?.email || "";
   const [activeTab, setActiveTab] = useState<'tree' | 'badges'>('tree');
 
   const handleSelectNode = (node: SkillNode) => {

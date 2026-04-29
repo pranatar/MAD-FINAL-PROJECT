@@ -4,8 +4,24 @@ import { Platform } from 'react-native';
 import { HapticTab } from '@/components/haptic-tab';
 import { Palette } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
+
 
 export default function TabLayout() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/(auth)/login');
+    }
+  }, [user, isLoading]);
+
+  if (isLoading) return null;
+  if (!user) return null;
+
   return (
     <Tabs
       screenOptions={{

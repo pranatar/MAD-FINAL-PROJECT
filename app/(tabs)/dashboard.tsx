@@ -12,9 +12,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Palette } from '@/constants/theme';
 import { useQuery, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { useAuth } from '@/context/AuthContext';
+
 
 const { width } = Dimensions.get('window');
-const USER_ID = "s22310459@student.unklab.ac.id";
 
 const DAY_LABELS_ID: Record<string, string> = {
   Sun: 'Min', Mon: 'Sen', Tue: 'Sel', Wed: 'Rab', Thu: 'Kam', Fri: 'Jum', Sat: 'Sab',
@@ -26,6 +27,8 @@ const SUBJECT_COLORS = [
 ];
 
 export default function DashboardScreen() {
+  const { user: authUser } = useAuth();
+  const USER_ID = authUser?.email || "";
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month'>('week');
 
   // ── Real data from Convex ──────────────────────────────────────

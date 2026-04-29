@@ -35,6 +35,7 @@ export const Palette = {
     border: '#2D2D44',
     text: '#E8E8F0',
     textMuted: '#9999BB',
+    textSecondary: '#CCCCEE',
   },
 
   // Light mode surfaces

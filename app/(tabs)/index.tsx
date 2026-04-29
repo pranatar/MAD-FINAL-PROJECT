@@ -15,12 +15,16 @@ import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
+
 
 const { width } = Dimensions.get('window');
-const USER_ID = "s22310459@student.unklab.ac.id";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user: authUser } = useAuth();
+  const USER_ID = authUser?.email || "";
+
   const user = useQuery(api.users.getUser, { email: USER_ID });
   const tasks = useQuery(api.tasks.getTasks, { userId: USER_ID });
   const sessions = useQuery(api.sessions.getWeeklyStats, { userId: USER_ID });
