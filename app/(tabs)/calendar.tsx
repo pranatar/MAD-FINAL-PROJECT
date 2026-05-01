@@ -221,7 +221,18 @@ export default function CalendarScreen() {
     }
   };
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = async (taskId: string) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm("Apakah Anda yakin ingin menghapus tugas ini secara permanen?")) {
+        try {
+          await deleteTaskAction({ taskId: taskId as any });
+        } catch (e) {
+          Alert.alert('Gagal', 'Tidak dapat menghapus tugas.');
+        }
+      }
+      return;
+    }
+
     Alert.alert(
       "Hapus Tugas",
       "Apakah Anda yakin ingin menghapus tugas ini secara permanen?",
@@ -242,7 +253,18 @@ export default function CalendarScreen() {
     );
   };
 
-  const handleDeleteScheduleBlock = (blockId: string) => {
+  const handleDeleteScheduleBlock = async (blockId: string) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm("Apakah Anda yakin ingin menghapus jadwal ini secara permanen?")) {
+        try {
+          await deleteScheduleBlockAction({ blockId: blockId as any });
+        } catch (e) {
+          Alert.alert('Gagal', 'Tidak dapat menghapus jadwal.');
+        }
+      }
+      return;
+    }
+
     Alert.alert(
       "Hapus Jadwal",
       "Apakah Anda yakin ingin menghapus jadwal ini secara permanen?",
@@ -357,11 +379,9 @@ export default function CalendarScreen() {
           {activeTab === 'schedule' ? (
             <>
               {schedule.map((block) => (
-                <TouchableOpacity
+                <View
                   key={block._id}
-                  style={[styles.blockCard, block.completed && styles.blockCardDone]}
-                  onPress={() => toggleComplete(block)}
-                  activeOpacity={0.85}>
+                  style={[styles.blockCard, block.completed && styles.blockCardDone]}>
 
                   {/* Left accent bar */}
                   <View style={[styles.blockAccent, { backgroundColor: BLOCK_TYPE_COLORS[block.type] }]} />
@@ -381,12 +401,13 @@ export default function CalendarScreen() {
                       <TouchableOpacity 
                         onPress={() => handleDeleteScheduleBlock(block._id)} 
                         hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
-                        style={{ padding: 4 }}
+                        style={{ padding: 4, zIndex: 10, position: 'relative' }}
                       >
                         <Ionicons name="trash-outline" size={18} color={Palette.danger} />
                       </TouchableOpacity>
                     </View>
 
+                    <TouchableOpacity onPress={() => toggleComplete(block)} activeOpacity={0.85}>
                     {/* Row 2: title */}
                     <Text style={[styles.blockTitle, block.completed && styles.textDone]}>
                       {TYPE_EMOJI[block.type]} {block.title}
@@ -438,13 +459,14 @@ export default function CalendarScreen() {
                         <Text style={styles.tipsText}>💡 {block.tips}</Text>
                       </View>
                     ) : null}
+                    </TouchableOpacity>
 
                   </View>
 
                   {/* Checkmark */}
                   {block.completed && <Text style={styles.checkmark}>✓</Text>}
 
-                </TouchableOpacity>
+                </View>
               ))}
 
               <TouchableOpacity style={styles.generateBtn} onPress={handleGenerateSchedule} disabled={isGenerating}>
@@ -458,11 +480,9 @@ export default function CalendarScreen() {
           ) : (
             <>
               {tasks.sort((a, b) => b.priority - a.priority).map((task) => (
-                <TouchableOpacity 
+                <View 
                   key={task._id} 
-                  style={[styles.taskCard, task.completed && { opacity: 0.5 }]}
-                  onPress={() => toggleTaskComplete(task._id, task.completed)}
-                  activeOpacity={0.8}>
+                  style={[styles.taskCard, task.completed && { opacity: 0.5 }]}>
                   <View style={styles.taskHeader}>
                     <View style={[styles.priorityBadge, { backgroundColor: task.priority >= 4 ? Palette.danger + '30' : Palette.energy + '30' }]}>
                       <Text style={[styles.priorityText, { color: task.priority >= 4 ? Palette.danger : Palette.energy }]}>
@@ -474,14 +494,18 @@ export default function CalendarScreen() {
                       <TouchableOpacity 
                         onPress={() => handleDeleteTask(task._id)}
                         hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+                        style={{ padding: 4, zIndex: 10, position: 'relative' }}
                       >
                         <Ionicons name="trash-outline" size={18} color={Palette.danger} />
                       </TouchableOpacity>
                     </View>
                   </View>
-                  <Text style={[styles.taskTitle, task.completed && { textDecorationLine: 'line-through' }]}>
-                    {task.completed ? '✅ ' : ''}{task.title}
-                  </Text>
+                  <TouchableOpacity 
+                    onPress={() => toggleTaskComplete(task._id, task.completed)}
+                    activeOpacity={0.8}>
+                    <Text style={[styles.taskTitle, task.completed && { textDecorationLine: 'line-through' }]}>
+                      {task.completed ? '✅ ' : ''}{task.title}
+                    </Text>
                   <Text style={styles.taskSubject}>{task.subject}</Text>
                   <View style={styles.taskFooter}>
                     <View style={[styles.diffBadge, { backgroundColor: DIFFICULTY_COLORS[task.difficulty] + '30' }]}>
@@ -492,6 +516,7 @@ export default function CalendarScreen() {
                     <Text style={styles.taskTime}>⏱️ ~{task.estimatedMinutes} menit</Text>
                   </View>
                 </TouchableOpacity>
+              </View>
               ))}
             </>
           )}
