@@ -200,6 +200,12 @@ export const generateSchedule = action({
 ${tasksData}
 
 Buat blok jadwal menggunakan teknik Pomodoro (maks 45 menit per sesi).
+PENTING UNTUK DESKRIPSI (description):
+- JANGAN HANYA mengulang judul tugas.
+- Berikan RINCIAN MENDALAM berupa poin-poin langkah spesifik yang harus dilakukan (misal: "1. Baca rumus dasar, 2. Kerjakan 5 soal latihan, 3. Review jawaban").
+- Jika ini materi teori, sebutkan sub-topik spesifik yang harus dikuasai.
+- Jika ini tugas dari pengguna sendiri (custom task), pecah tugas tersebut menjadi tahapan logis agar pengguna tahu persis apa yang harus dilakukan langkah demi langkah.
+
 Kembalikan HANYA JSON array valid seperti ini, tanpa backtick atau teks lain:
 [
   {
@@ -209,7 +215,7 @@ Kembalikan HANYA JSON array valid seperti ini, tanpa backtick atau teks lain:
     "endTime": "Sesi Pagi 2",
     "type": "study",
     "durationMinutes": 45,
-    "description": "Apa yang dikerjakan di sesi ini",
+    "description": "1. Langkah pertama yang konkrit\\n2. Langkah kedua yang spesifik\\n3. Langkah ketiga untuk penyelesaian",
     "tips": "1 tips belajar praktis",
     "priority": 2,
     "focusTechnique": "Pomodoro"

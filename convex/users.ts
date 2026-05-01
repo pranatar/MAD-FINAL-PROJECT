@@ -73,3 +73,44 @@ export const getUser = query({
       .first();
   },
 });
+
+// Reset user data to start fresh
+export const resetUserData = mutation({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    // 1. Get the user
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), args.userId))
+      .first();
+    
+    if (!user) throw new Error("User not found");
+
+    // 2. Delete all related data
+    const tablesToClear = ["tasks", "studySessions", "scheduleBlocks", "skillNodes"] as const;
+    for (const table of tablesToClear) {
+      const records = await ctx.db
+        .query(table as any)
+        .filter((q) => q.eq(q.field("userId"), args.userId))
+        .collect();
+      for (const record of records) {
+        await ctx.db.delete(record._id);
+      }
+    }
+
+    // 3. Reset user profile stats
+    await ctx.db.patch(user._id, {
+      totalXP: 0,
+      level: 1,
+      totalStudyMinutes: 0,
+      streakDays: 0,
+      badges: [],
+      currentMood: undefined,
+      lastMoodUpdate: undefined,
+      lastStudyDate: undefined,
+    });
+
+    return { success: true };
+  },
+});
+

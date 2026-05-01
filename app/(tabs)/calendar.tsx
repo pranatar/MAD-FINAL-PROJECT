@@ -17,6 +17,7 @@ import { Palette } from '@/constants/theme';
 import { useAction, useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useAuth } from '@/context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 
 
 // ── Preset options ──────────────────────────────────────────────
@@ -126,6 +127,8 @@ export default function CalendarScreen() {
   const logSessionAction = useMutation(api.sessions.logSession);
   const saveAIScheduleAction = useMutation(api.tasks.saveAISchedule);
   const toggleBlockCompleteAction = useMutation(api.tasks.toggleBlockComplete);
+  const deleteTaskAction = useMutation(api.tasks.deleteTask);
+  const deleteScheduleBlockAction = useMutation(api.tasks.deleteScheduleBlock);
 
   const [activeTab, setActiveTab] = useState<'schedule' | 'tasks'>('schedule');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -216,6 +219,48 @@ export default function CalendarScreen() {
     if (!currentCompleted) {
       await completeTaskAction({ taskId: taskId as any });
     }
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    Alert.alert(
+      "Hapus Tugas",
+      "Apakah Anda yakin ingin menghapus tugas ini secara permanen?",
+      [
+        { text: "Batal", style: "cancel" },
+        { 
+          text: "Hapus", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await deleteTaskAction({ taskId: taskId as any });
+            } catch (e) {
+              Alert.alert('Gagal', 'Tidak dapat menghapus tugas.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteScheduleBlock = (blockId: string) => {
+    Alert.alert(
+      "Hapus Jadwal",
+      "Apakah Anda yakin ingin menghapus jadwal ini secara permanen?",
+      [
+        { text: "Batal", style: "cancel" },
+        { 
+          text: "Hapus", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await deleteScheduleBlockAction({ blockId: blockId as any });
+            } catch (e) {
+              Alert.alert('Gagal', 'Tidak dapat menghapus jadwal.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleGenerateSchedule = async () => {
@@ -325,12 +370,21 @@ export default function CalendarScreen() {
 
                     {/* Row 1: time + priority + technique */}
                     <View style={styles.blockRow}>
-                      <Text style={[styles.blockTime, block.completed && styles.textDone]}>
-                        🕐 {block.startTime} – {block.endTime}
-                      </Text>
-                      {block.durationMinutes && (
-                        <Text style={styles.blockDuration}>⏱ {block.durationMinutes} mnt</Text>
-                      )}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[styles.blockTime, block.completed && styles.textDone]}>
+                          🕐 {block.startTime} – {block.endTime}
+                        </Text>
+                        {block.durationMinutes && (
+                          <Text style={styles.blockDuration}>⏱ {block.durationMinutes} mnt</Text>
+                        )}
+                      </View>
+                      <TouchableOpacity 
+                        onPress={() => handleDeleteScheduleBlock(block._id)} 
+                        hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+                        style={{ padding: 4 }}
+                      >
+                        <Ionicons name="trash-outline" size={18} color={Palette.danger} />
+                      </TouchableOpacity>
                     </View>
 
                     {/* Row 2: title */}
@@ -415,7 +469,15 @@ export default function CalendarScreen() {
                         P{task.priority}
                       </Text>
                     </View>
-                    <Text style={styles.taskDeadline}>Deadline: {task.deadline}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <Text style={styles.taskDeadline}>Deadline: {task.deadline}</Text>
+                      <TouchableOpacity 
+                        onPress={() => handleDeleteTask(task._id)}
+                        hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+                      >
+                        <Ionicons name="trash-outline" size={18} color={Palette.danger} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                   <Text style={[styles.taskTitle, task.completed && { textDecorationLine: 'line-through' }]}>
                     {task.completed ? '✅ ' : ''}{task.title}

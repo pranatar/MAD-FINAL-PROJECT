@@ -185,3 +185,12 @@ export const toggleBlockComplete = mutation({
     await ctx.db.patch(args.blockId, { completed: args.completed });
   },
 });
+
+// Delete schedule block
+export const deleteScheduleBlock = mutation({
+  args: { blockId: v.id("scheduleBlocks") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.blockId);
+  },
+});
+

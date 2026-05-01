@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Palette } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
@@ -12,6 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 export default function ProfileScreen() {
   const router = useRouter();
   const { user: authUser, signOut } = useAuth();
+  const resetUserData = useMutation(api.users.resetUserData);
   const email = authUser?.email || "";
   const user = useQuery(api.users.getUser, { email });
 
@@ -30,6 +31,31 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     await signOut();
     router.replace('/(auth)/login');
+  };
+  
+  const handleResetData = () => {
+    import('react-native').then(({ Alert }) => {
+      Alert.alert(
+        "Hapus Semua Data?",
+        "Tindakan ini akan menghapus semua tugas, riwayat belajar, dan XP Anda secara permanen. Anda akan mulai dari nol.",
+        [
+          { text: "Batal", style: "cancel" },
+          { 
+            text: "Ya, Hapus", 
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await resetUserData({ userId: email });
+                setActiveModal(null);
+                Alert.alert("Berhasil", "Data Anda telah dikosongkan.");
+              } catch (e) {
+                Alert.alert("Gagal", "Terjadi kesalahan saat menghapus data.");
+              }
+            }
+          }
+        ]
+      );
+    });
   };
 
   const renderModalContent = () => {
@@ -53,7 +79,7 @@ export default function ProfileScreen() {
                 trackColor={{ false: Palette.dark.border, true: Palette.primary }}
               />
             </View>
-            <TouchableOpacity style={styles.deleteAccBtn}>
+            <TouchableOpacity style={styles.deleteAccBtn} onPress={handleResetData}>
               <Text style={styles.deleteAccText}>Delete Account Data</Text>
             </TouchableOpacity>
           </View>
@@ -138,17 +164,19 @@ export default function ProfileScreen() {
         {/* Stats Row */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{user?.totalXP || 0}</Text>
+            <Text style={styles.statValue}>{user?.totalXP ?? 0}</Text>
             <Text style={styles.statLabel}>Total XP</Text>
           </View>
           <View style={styles.statSeparator} />
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{user?.streakDays || 0}</Text>
-            <Text style={styles.statLabel}>Day Streak🔥</Text>
+            <Text style={styles.statValue}>{user?.streakDays ?? 0}</Text>
+            <Text style={styles.statLabel}>Streak 🔥</Text>
           </View>
           <View style={styles.statSeparator} />
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{Math.floor((user?.totalStudyMinutes || 0) / 60)}h</Text>
+            <Text style={styles.statValue}>
+              {Math.floor(Number(user?.totalStudyMinutes || 0) / 60)}h
+            </Text>
             <Text style={styles.statLabel}>Study Time</Text>
           </View>
         </View>
@@ -240,11 +268,12 @@ const styles = StyleSheet.create({
   userName: { fontSize: 22, fontWeight: '700', color: Palette.dark.text, marginBottom: 4 },
   userEmail: { fontSize: 14, color: Palette.dark.textMuted },
   
-  statsRow: { flexDirection: 'row', backgroundColor: Palette.dark.surface, borderRadius: 16, padding: 20, marginBottom: 30, borderWidth: 1, borderColor: Palette.dark.border, justifyContent: 'space-between', alignItems: 'center' },
-  statCard: { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: 20, fontWeight: '800', color: Palette.dark.text, marginBottom: 4 },
-  statLabel: { fontSize: 12, color: Palette.dark.textMuted },
-  statSeparator: { width: 1, height: 40, backgroundColor: Palette.dark.border },
+  statsRow: { flexDirection: 'row', backgroundColor: Palette.dark.card, borderRadius: 20, padding: 20, marginBottom: 30, borderWidth: 1, borderColor: Palette.dark.border, justifyContent: 'space-between', alignItems: 'center' },
+  statCard: { flex: 1, alignItems: 'center', gap: 4 },
+  statValue: { fontSize: 20, fontWeight: '900', color: Palette.dark.text },
+  statLabel: { fontSize: 11, color: Palette.dark.textMuted, fontWeight: '600' },
+  statSeparator: { width: 1.5, height: 24, backgroundColor: Palette.dark.border },
+
   
   section: { marginBottom: 30 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

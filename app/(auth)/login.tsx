@@ -82,6 +82,7 @@ export default function LoginScreen() {
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
   });
 
   React.useEffect(() => {
@@ -90,6 +91,12 @@ export default function LoginScreen() {
       if (authentication?.accessToken) {
         handleGoogleLoginSuccess(authentication.accessToken);
       }
+    } else if (response?.type === 'error') {
+      console.error('Google Auth Error:', response.error);
+      Alert.alert(
+        "Google Login Error",
+        `Terjadi kesalahan: ${response.error?.message || 'Cek konfigurasi redirect URI di Google Console.'}`
+      );
     }
   }, [response]);
 
